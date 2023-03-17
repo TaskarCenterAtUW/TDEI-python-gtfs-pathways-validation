@@ -1,0 +1,9 @@
+{
+  "Tests": [
+    {
+      "Name": "TC1: Failed Pathways Test",
+      "Input_file": "test_files/pathways_test_case1.json",
+      "Result": false
+    }
+  ]
+}
