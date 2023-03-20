@@ -95,7 +95,7 @@ class GTFSPathwaysValidation:
         file = self.storage_client.get_file_from_url(self.container_name, file_upload_path)
         try:
             if file.file_path:
-                file_path = file.file_path.split('/')[-1]
+                file_path = os.path.basename(file.file_path)
                 with open(f'{DOWNLOAD_FILE_PATH}/{file_path}', 'wb') as blob:
                     blob.write(file.get_stream())
                 logger.info(f' File downloaded to location: {DOWNLOAD_FILE_PATH}/{file_path}')
