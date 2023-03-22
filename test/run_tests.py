@@ -69,7 +69,7 @@ def subscribe(core, settings: Settings):
         parsed_data = parsed_message['data']
         test_detail = [item for item in TESTS if item.get('Name') == message]
         if len(test_detail) > 0:
-            if test_detail[0]['Result'] == parsed_data['is_valid']:
+            if test_detail[0]['Result'] == parsed_data['response']['success']:
                 print(f'Performing tests :{message}:PASSED\n')
             else:
                 print(f'Performing tests :{message}:FAILED\n')

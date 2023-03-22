@@ -42,46 +42,23 @@ class GTFSPathwaysValidation:
     # when ready to replace, replace the call in the
     # above function.
     def is_gtfs_pathways_valid(self) -> tuple[Union[bool, Any], Union[str, Any]]:
-        dest = DOWNLOAD_FILE_PATH
         is_valid = False
         validation_message = ''
         root, ext = os.path.splitext(self.file_relative_path)
-        if ext:
+        if ext and ext.lower() == '.zip':
             downloaded_file_path = self.download_single_file(self.file_path)
             try:
                 logger.info(f' Downloaded file path: {downloaded_file_path}')
                 gcv_test_release.test_release(DATA_TYPE, SCHEMA_VERSION, downloaded_file_path)
                 is_valid = True
+                GTFSPathwaysValidation.clean_up(downloaded_file_path)
             except Exception as err:
                 traceback.print_exc()
                 validation_message = str(err)
                 logger.error(f' Error While Validating File: {str(err)}')
         else:
-            source = '/'.join(self.file_path.split('/')[4:])
-            blobs = self.ls_files(source, recursive=True)
-            if blobs:
-                if not source == '' and not source.endswith('/'):
-                    source += '/'
-                if not dest.endswith('/'):
-                    dest += '/'
-                dest += os.path.basename(os.path.normpath(source)) + '/'
-                blobs = [source + blob for blob in blobs]
-                for blob in blobs:
-                    blob_dest = dest + os.path.relpath(blob, source)
-                    self.download_file(blob, blob_dest)
-            else:
-                self.download_file(source, dest)
-            try:
-                gcv_test_release.test_release(DATA_TYPE, SCHEMA_VERSION, dest)
-                is_valid = True
-            except Exception as err:
-                traceback.print_exc()
-                logger.error(f' Error While Validating Folder: {str(err)}')
-                validation_message = str(err)
-            finally:
-                downloaded_file_path = dest
+            logger.error(f' Failed to validate because unknown file format')
 
-        GTFSPathwaysValidation.clean_up(downloaded_file_path)
         return is_valid, validation_message
 
     # Downloads the file to local folder of the server
@@ -105,32 +82,6 @@ class GTFSPathwaysValidation:
         except Exception as e:
             traceback.print_exc()
             logger.error(e)
-
-    def download_file(self, source, dest):
-        # dest is a directory if ending with '/' or '.', otherwise it's a file
-        if dest.endswith('.'):
-            dest += '/'
-        blob_dest = dest + os.path.basename(source) if dest.endswith('/') else dest
-
-        logger.info(f' Downloading {source} to {blob_dest}')
-        os.makedirs(os.path.dirname(blob_dest), exist_ok=True)
-        bc = self.storage_client.get_file(container_name=self.container_name, file_name=source)
-
-        with open(blob_dest, 'wb') as file:
-            file.write(bc.get_stream())
-        return blob_dest
-
-    def ls_files(self, path, recursive=False):
-        if not path == '' and not path.endswith('/'):
-            path += '/'
-
-        blob_iter = self.client.list_files(name_starts_with=path)
-        files = []
-        for blob in blob_iter:
-            relative_path = os.path.relpath(blob.name, path)
-            if recursive or not '/' in relative_path:
-                files.append(relative_path)
-        return files
 
     @staticmethod
     def clean_up(path):
