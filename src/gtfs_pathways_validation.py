@@ -51,11 +51,11 @@ class GTFSPathwaysValidation:
                 logger.info(f' Downloaded file path: {downloaded_file_path}')
                 gcv_test_release.test_release(DATA_TYPE, SCHEMA_VERSION, downloaded_file_path)
                 is_valid = True
-                GTFSPathwaysValidation.clean_up(downloaded_file_path)
             except Exception as err:
                 traceback.print_exc()
                 validation_message = str(err)
                 logger.error(f' Error While Validating File: {str(err)}')
+            GTFSPathwaysValidation.clean_up(downloaded_file_path)
         else:
             logger.error(f' Failed to validate because unknown file format')
 

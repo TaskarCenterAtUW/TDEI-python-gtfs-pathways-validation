@@ -2,11 +2,12 @@
 
 ## Introduction 
 Service to Validate the GTFS pathways file that is uploaded. At the moment, the service does the following:
-- Listens to the topic _gtfs-pathways-validation_ for any new message (that is triggered when a file is uploaded)
-- Consumes the message and checks the filename in the message
-  - if the filename contains the word _valid_ returns **valid** as the result
-  - if the filename contains the word _invalid_ returns **invalid** as the result
-  - if the file name does not contain either, it will return **invalid** as the result
+- Listens to the topic _gtfs-pathways-upload_ for any new message (that is triggered when a file is uploaded)
+- Consumes the message and perform following checks - 
+  - Download the file locally 
+  - File location is in the message `data.meta.file_upload_path`, reference see this file [msg-gtfs-pathways-upload.json](./src/assets/msg-gtfs-pathways-upload.json)
+  - Uses `tdei-gtfs-csv-validator` to validate the file
+  - Added the `isValid` and `validationMessage` keys to the original message 
 - Publishes the result to the topic _gtfs-pathways-validation_
 
 ## Getting Started
