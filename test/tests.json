@@ -1,0 +1,14 @@
+{
+  "Tests": [
+    {
+      "Name": "TC1: Failed Pathways Test",
+      "Input_file": "test_files/pathways_test_case1.json",
+      "Result": false
+    },
+    {
+      "Name": "TC1: Valid Pathways Test",
+      "Input_file": "test_files/pathways_test_case2.json",
+      "Result": true
+    }
+  ]
+}
