@@ -108,7 +108,7 @@ class GTFSPathwaysUploadData:
 class Request:
     def __init__(self, data: dict):
         self._tdei_org_id = data.get('tdei_org_id', '')
-        self._tdei_service_id = data.get('tdei_service_id', '')
+        self._tdei_station_id = data.get('tdei_station_id', '')
         self._collected_by = data.get('collected_by', '')
         self._collection_date = data.get('collection_date', '')
         self._collection_method = data.get('collection_method', '')
@@ -125,10 +125,10 @@ class Request:
     def tdei_org_id(self, value): self._tdei_org_id = value
 
     @property
-    def tdei_service_id(self): return self._tdei_service_id
+    def tdei_station_id(self): return self._tdei_station_id
 
-    @tdei_service_id.setter
-    def tdei_service_id(self, value): self._tdei_service_id = value
+    @tdei_station_id.setter
+    def tdei_station_id(self, value): self._tdei_station_id = value
 
     @property
     def collected_by(self): return self._collected_by
