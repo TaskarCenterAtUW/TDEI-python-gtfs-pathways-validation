@@ -22,6 +22,7 @@ class GTFSPathwaysValidator:
         self.listening_topic = core.get_topic(topic_name=settings.subscription_topic_name)
         self.publish_topic = core.get_topic(topic_name=settings.publishing_topic_name)
         self.logger = core.get_logger()
+        self.storage_client = core.get_storage_client()
         self.subscribe()
 
     def subscribe(self) -> None:
@@ -34,7 +35,7 @@ class GTFSPathwaysValidator:
                 logger.info(f' Received message for Record: {upload_message.data.tdei_record_id}')
                 if file_upload_path:
                     # Do the validation in the other class
-                    validator = GTFSPathwaysValidation(file_path=file_upload_path)
+                    validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
                     validation = validator.validate()
                     self.send_status(valid=validation[0], upload_message=upload_message,
                                      validation_message=validation[1])
