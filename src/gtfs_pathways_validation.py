@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Union, Any
 from .config import Settings
 
-from python_ms_core import Core
 from tdei_gtfs_csv_validator import gcv_test_release
 from tdei_gtfs_csv_validator import exceptions as gcvex
 
@@ -23,11 +22,10 @@ SCHEMA_VERSION = 'v1.0'
 
 
 class GTFSPathwaysValidation:
-    def __init__(self, file_path=None):
-        core = Core()
+    def __init__(self, file_path=None, storage_client=None):
         settings = Settings()
         self.container_name = settings.storage_container_name
-        self.storage_client = core.get_storage_client()
+        self.storage_client = storage_client
         self.file_path = file_path
         self.file_relative_path = file_path.split('/')[-1]
         self.client = self.storage_client.get_container(container_name=self.container_name)
