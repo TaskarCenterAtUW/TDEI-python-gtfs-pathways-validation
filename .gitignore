@@ -131,3 +131,5 @@ dmypy.json
 .pyre/
 .downloads/
 .tempdir/
+reports/
+test_report.html

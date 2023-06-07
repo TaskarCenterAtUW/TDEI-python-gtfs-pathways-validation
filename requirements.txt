@@ -30,3 +30,6 @@ urllib3==1.26.14
 uvicorn==0.20.0
 pandas==1.5.2
 jsonschema==4.17.3
+httpx==0.24.1
+coverage==7.2.7
+html_testRunner==1.2.1
