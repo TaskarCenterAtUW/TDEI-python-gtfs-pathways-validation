@@ -29,7 +29,8 @@ VALIDATION_TOPIC=xxxx
 QUEUECONNECTION=xxxx
 STORAGECONNECTION=xxxx
 ```
-The application right now does not connect with the storage but validates via the file name.
+- The application connect with the `STORAGECONNECTION` string provided in `.env` file and validates downloaded zipfile using `tdei-gtfs-csv-validator` package.
+- `QUEUECONNECTION` is not being used in this application but this is the main requirement for `python-ms-core` package
 
 ### How to Setup and Build
 Follow the steps to install the node packages required for both building and running the application
