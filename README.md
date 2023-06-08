@@ -77,6 +77,19 @@ Add the new set of test inside `test/tests.json` file like -
 
 ```
 
+#### How to run the tests
+1. Set up the python env locally, see [here](#how-to-setup-aand-build) 
+2. Set up `.env` file, see [here](#connectivity-to-cloud) 
+3. To run the tests
+    ```
+   # To run all th unit test cases
+   coverage run --source=src -m unittest discover -s tests
+   # To generate the code coverage report 
+   coverage report
+   # To generate the code coverage html report
+   coverage html
+    ```
+
 ### Messaging
 
 This microservice deals with two topics/queues. 
