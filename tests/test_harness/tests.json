@@ -6,7 +6,7 @@
       "Result": false
     },
     {
-      "Name": "TC1: Valid Pathways Test",
+      "Name": "TC2: Valid Pathways Test",
       "Input_file": "test_files/pathways_test_case2.json",
       "Result": true
     }
