@@ -89,8 +89,7 @@ Make sure you have setup the project properly before running the tests, see abov
    4. To generate the coverage report in html.
       1. `coverage html`
       2. Above command will generate the html report, and generated html would be in `htmlcov` directory at the root level.
-   5. _NOTE :_ To run the `html` or `report` coverage, 3.i) command is should be mandatory  
-`
+   5. _NOTE :_ To run the `html` or `report` coverage, 3.i) command is mandatory
 
 ### Messaging
 

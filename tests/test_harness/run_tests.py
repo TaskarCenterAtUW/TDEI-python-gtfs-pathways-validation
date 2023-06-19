@@ -19,7 +19,7 @@ load_dotenv()
 
 
 class Settings(BaseSettings):
-    publishing_topic_name: str = os.environ.get('VALIDATION_TOPIC', None)
+    publishing_topic_name: str = os.environ.get('UPLOAD_TOPIC', None)
     subscription_topic_name: str = os.environ.get('UPLOAD_TOPIC', None)
     subscription_name: str = os.environ.get('UPLOAD_SUBSCRIPTION', None)
     container_name: str = os.environ.get('CONTAINER_NAME', 'tdei-storage-test')
@@ -49,7 +49,7 @@ def do_test(test, core, settings: Settings):
     with open(input_file, 'rb') as msg_file:
         test_file.upload(msg_file)
         blob_url = test_file.get_remote_url()
-        print(f'Performing tests :{test["Name"]}:{blob_url}')
+        print(f'Performing tests : {test["Name"]}:{blob_url}')
     message_id = uuid.uuid1().hex[0:24]
     # Reading the input file
     input_data = open(input_file)
