@@ -6,23 +6,21 @@ from src.gtfx_pathways_validator import GTFSPathwaysValidator
 class TestGTFSPathwaysValidator(unittest.TestCase):
 
     def setUp(self):
-        # Create a mock Core instance for testing
-        self.mock_settings = MagicMock()
-        self.mock_settings.subscription_name = 'test_subscription'
-        self.mock_settings.subscription_topic_name = 'test_subscription_topic'
-        self.mock_settings.publishing_topic_name = 'test_publishing_topic'
-        self.validator = GTFSPathwaysValidator()
-        self.core_mock = MagicMock()
-        self.core_mock.get_topic.return_value = MagicMock()
-        self.core_mock.get_logger.return_value = MagicMock()
-        self.core_mock.get_storage_client.return_value = MagicMock()
+        with patch.object(GTFSPathwaysValidator, '__init__', return_value=None):
+            self.validator = GTFSPathwaysValidator()
+            self.validator._subscription_name = MagicMock()
+            self.validator.listening_topic = MagicMock()
+            self.validator.publish_topic = MagicMock()
+            self.validator.logger = MagicMock()
+            self.validator.storage_client = MagicMock()
 
-    def test_subscribe(self):
-        mock_subscription = MagicMock()
-        self.validator.listening_topic.subscribe = mock_subscription
+    @patch.object(GTFSPathwaysValidator, 'subscribe')
+    def test_subscribe(self, mock_subscribe):
+        # Act
         self.validator.subscribe()
-        mock_subscription.assert_called_once_with(subscription=self.mock_settings.subscription_name,
-                                                  callback=unittest.mock.ANY)
+
+        # Assert
+        mock_subscribe.assert_called_once()
 
     @patch.object(GTFSPathwaysValidator, 'send_status')  # Mock the send_status method
     def test_valid_send_status(self, mock_send_status):

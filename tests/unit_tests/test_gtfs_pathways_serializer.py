@@ -4,10 +4,11 @@ import unittest
 from unittest.mock import MagicMock
 from src.serializer.gtfs_pathways_serializer import GTFSPathwaysUpload, GTFSPathwaysUploadData, Request, Meta, Response
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
+current_dir = os.path.dirname(os.path.abspath(os.path.join(__file__, '../')))
 parent_dir = os.path.dirname(current_dir)
 
-TEST_JSON_FILE = os.path.join(parent_dir, 'src/assests/test_pathways_payload.json')
+TEST_JSON_FILE = os.path.join(parent_dir, 'src/assets/test_pathways_payload.json')
+
 TEST_FILE = open(TEST_JSON_FILE)
 TEST_DATA = json.loads(TEST_FILE.read())
 

@@ -2,11 +2,11 @@ import unittest
 import HtmlTestRunner
 
 # Define your test cases
-from tests.test_gtfs_pathways_serializer import TestGTFSPathwaysUpload, TestGTFSPathwaysUploadData, TestRequest, \
+from tests.unit_tests.test_gtfs_pathways_serializer import TestGTFSPathwaysUpload, TestGTFSPathwaysUploadData, TestRequest, \
     TestMeta, TestResponse
-from tests.test_gtfs_pathways_validation import TestGTFSPathwaysValidation
-from tests.test_gtfx_pathways_validator import TestGTFSPathwaysValidator
-from tests.test_main import TestApp
+from tests.unit_tests.test_gtfs_pathways_validation import TestSuccessGTFSPathwaysValidation, TestFailureGTFSPathwaysValidation
+from tests.unit_tests.test_gtfx_pathways_validator import TestGTFSPathwaysValidator
+from tests.unit_tests.test_main import TestApp
 
 if __name__ == '__main__':
     # Create a test suite
@@ -17,7 +17,8 @@ if __name__ == '__main__':
     test_suite.addTest(unittest.makeSuite(TestRequest))
     test_suite.addTest(unittest.makeSuite(TestMeta))
     test_suite.addTest(unittest.makeSuite(TestResponse))
-    test_suite.addTest(unittest.makeSuite(TestGTFSPathwaysValidation))
+    test_suite.addTest(unittest.makeSuite(TestSuccessGTFSPathwaysValidation))
+    test_suite.addTest(unittest.makeSuite(TestFailureGTFSPathwaysValidation))
     test_suite.addTest(unittest.makeSuite(TestGTFSPathwaysValidator))
     test_suite.addTest(unittest.makeSuite(TestApp))
 
