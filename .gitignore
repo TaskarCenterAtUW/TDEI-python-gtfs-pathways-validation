@@ -133,3 +133,4 @@ dmypy.json
 .tempdir/
 reports/
 test_report.html
+integration_test_report.html

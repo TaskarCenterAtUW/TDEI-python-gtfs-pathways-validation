@@ -89,3 +89,14 @@ if __name__ == '__main__':
 | Server | TestApp | Functional | When calling get_settings function | Expect to return env variables |:white_check_mark:|
 | Server | TestApp | Functional | When calling ping function | Expect to return 200 |:white_check_mark:|
 | Server | TestApp | Functional | When calling root function | Expect to return 200 |:white_check_mark:|
+
+
+## Integration Test cases
+In case of integration tests, the system will look for all the integration points to be tested
+
+| Component | Feature under test | Scenario | Expectation | Status |
+|-|-|-|-|-|
+| Pathways Validator | Servicebus integration | Subscribe to upload topic to verify servicebus integration | Expect to return message |:white_check_mark: |
+| Pathways Validator | Servicebus integration | Should publish a message to be received on topic | Expect to receive message on target topic | :white_check_mark: |
+| Pathways Validator | Storage Integration | Fetching a file returns a file entity | Expect to return the file entity | |
+
