@@ -91,6 +91,12 @@ Make sure you have setup the project properly before running the tests, see abov
       2. Above command will generate the html report, and generated html would be in `htmlcov` directory at the root level.
    5. _NOTE :_ To run the `html` or `report` coverage, 3.i) command is mandatory
 
+#### How to run integration test cases
+1. `.env` file is required for Unit test cases.
+2. To run the integration test cases, run the below command
+   `python -m unittest tests/integration_tests/test_gtfs_pathways_integration.py`
+
+
 ### Messaging
 
 This microservice deals with two topics/queues. 
