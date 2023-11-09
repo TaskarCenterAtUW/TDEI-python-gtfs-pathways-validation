@@ -61,11 +61,11 @@ if __name__ == '__main__':
 | Serializer | TestGTFSPathwaysUpload | Functional| When requested with upload to_json | Expect to return same dict |:white_check_mark:|
 |--|--|--|--|--|--|
 | Serializer | TestGTFSPathwaysUploadData | Functional| When requested with stage parameter| Expect to return stage |:white_check_mark:|
-| Serializer | TestGTFSPathwaysUploadData | Functional| When requested with tdei_org_id parameter| Expect to return tdei_org_id |:white_check_mark:|
+| Serializer | TestGTFSPathwaysUploadData | Functional| When requested with tdei_project_group_id parameter| Expect to return tdei_project_group_id |:white_check_mark:|
 | Serializer | TestGTFSPathwaysUploadData | Functional| When requested with tdei_record_id parameter| Expect to return tdei_record_id |:white_check_mark:|
 | Serializer | TestGTFSPathwaysUploadData | Functional| When requested with user_id parameter| Expect to return user_id |:white_check_mark:|
 |--|--|--|--|--|--|
-| Serializer | TestRequest | Functional| When requested with tdei_org_id parameter| Expect to return tdei_org_id |:white_check_mark:|
+| Serializer | TestRequest | Functional| When requested with tdei_project_group_id parameter| Expect to return tdei_project_group_id |:white_check_mark:|
 |--|--|--|--|--|--|
 | Serializer | TestMeta | Functional| When requested with file_upload_path parameter| Expect to return file_upload_path |:white_check_mark:|
 |--|--|--|--|--|--|
