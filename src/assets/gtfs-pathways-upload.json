@@ -69,7 +69,7 @@
     },
     "response": {
       "success": true,
-      "message": "File uploaded for the Organization : 0b41ebc5-350c-42d3-90af-3af4ad3628fb with tdei record id : c8c76e89f30944d2b2abd2491bd95337"
+      "message": "File uploaded for the Project Group : 0b41ebc5-350c-42d3-90af-3af4ad3628fb with tdei record id : c8c76e89f30944d2b2abd2491bd95337"
     },
     "tdei_record_id": "c8c76e89f30944d2b2abd2491bd95337",
     "tdei_project_group_id": "0b41ebc5-350c-42d3-90af-3af4ad3628fb",
