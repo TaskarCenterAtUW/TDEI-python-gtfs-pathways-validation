@@ -71,7 +71,7 @@ class GTFSPathwaysUploadData:
         self.meta = Meta(data=meta) if meta else {}
         self.response = Response(data=response) if response else {}
         self._tdei_record_id = data.get('tdei_record_id', '')
-        self._tdei_org_id = data.get('tdei_org_id', '')
+        self._tdei_project_group_id = data.get('tdei_project_group_id', '')
         self._user_id = data.get('user_id', '')
 
     @property
@@ -87,10 +87,10 @@ class GTFSPathwaysUploadData:
     def tdei_record_id(self, value): self._tdei_record_id = value
 
     @property
-    def tdei_org_id(self): return self._tdei_org_id
+    def tdei_project_group_id(self): return self._tdei_project_group_id
 
-    @tdei_org_id.setter
-    def tdei_org_id(self, value): self._tdei_org_id = value
+    @tdei_project_group_id.setter
+    def tdei_project_group_id(self, value): self._tdei_project_group_id = value
 
     @property
     def user_id(self): return self._user_id
@@ -107,7 +107,7 @@ class GTFSPathwaysUploadData:
 
 class Request:
     def __init__(self, data: dict):
-        self._tdei_org_id = data.get('tdei_org_id', '')
+        self._tdei_project_group_id = data.get('tdei_project_group_id', '')
         self._tdei_station_id = data.get('tdei_station_id', '')
         self._collected_by = data.get('collected_by', '')
         self._collection_date = data.get('collection_date', '')
@@ -119,10 +119,10 @@ class Request:
         self._pathways_schema_version = data.get('pathways_schema_version', '')
 
     @property
-    def tdei_org_id(self): return self._tdei_org_id
+    def tdei_project_group_id(self): return self._tdei_project_group_id
 
-    @tdei_org_id.setter
-    def tdei_org_id(self, value): self._tdei_org_id = value
+    @tdei_project_group_id.setter
+    def tdei_project_group_id(self, value): self._tdei_project_group_id = value
 
     @property
     def tdei_station_id(self): return self._tdei_station_id
