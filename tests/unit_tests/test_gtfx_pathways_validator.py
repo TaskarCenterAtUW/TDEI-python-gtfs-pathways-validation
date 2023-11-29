@@ -25,7 +25,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
     @patch.object(GTFSPathwaysValidator, 'send_status')  # Mock the send_status method
     def test_valid_send_status(self, mock_send_status):
         upload_message_data = MagicMock()
-        upload_message_data.stage = 'Pathways-Validation'  # Set the stage attribute
+        upload_message_data.stage = 'pathways-validation'  # Set the stage attribute
 
         # Create a mock meta object
         mock_meta = MagicMock()
@@ -50,7 +50,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         self.validator.send_status(valid=True, upload_message=upload_message)
 
         # Add assertions for the expected behavior
-        self.assertEqual(upload_message_data.stage, 'Pathways-Validation')
+        self.assertEqual(upload_message_data.stage, 'pathways-validation')
         self.assertTrue(upload_message_data.meta.isValid)
         self.assertEqual(upload_message_data.meta.validationMessage, 'Validation successful')
         self.assertTrue(upload_message_data.response.success)
@@ -62,7 +62,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
     @patch.object(GTFSPathwaysValidator, 'send_status')  # Mock the send_status method
     def test_invalid_send_status(self, mock_send_status):
         upload_message_data = MagicMock()
-        upload_message_data.stage = 'Pathways-Validation'  # Set the stage attribute
+        upload_message_data.stage = 'pathways-validation'  # Set the stage attribute
 
         # Create a mock meta object
         mock_meta = MagicMock()
@@ -87,7 +87,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         self.validator.send_status(valid=False, upload_message=upload_message)
 
         # Add assertions for the expected behavior
-        self.assertEqual(upload_message_data.stage, 'Pathways-Validation')
+        self.assertEqual(upload_message_data.stage, 'pathways-validation')
         self.assertFalse(upload_message_data.meta.isValid)
         self.assertEqual(upload_message_data.meta.validationMessage, 'Validation failed')
         self.assertFalse(upload_message_data.response.success)
