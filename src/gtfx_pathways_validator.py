@@ -47,7 +47,7 @@ class GTFSPathwaysValidator:
         self.listening_topic.subscribe(subscription=self._subscription_name, callback=process)
 
     def send_status(self, valid: bool, upload_message: GTFSPathwaysUpload, validation_message: str = '') -> None:
-        upload_message.data.stage = 'Pathways-Validation'
+        upload_message.data.stage = 'pathways-validation'
         upload_message.data.meta.isValid = valid
         upload_message.data.meta.validationMessage = validation_message or 'Validation successful'
         upload_message.data.response.success = valid
