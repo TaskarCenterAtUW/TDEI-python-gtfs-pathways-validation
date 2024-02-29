@@ -1,5 +1,6 @@
 fastapi==0.88.0
 pydantic==1.10.4
+psutil==5.9.5
 python-dotenv==0.21.0
 python-ms-core==0.0.16
 jsonschema==4.17.3
