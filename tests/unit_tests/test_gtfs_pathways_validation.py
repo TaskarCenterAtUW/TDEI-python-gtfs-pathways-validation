@@ -8,7 +8,7 @@ from src.gtfs_pathways_validation import GTFSPathwaysValidation
 DOWNLOAD_FILE_PATH = f'{Path.cwd()}/downloads'
 SAVED_FILE_PATH = f'{Path.cwd()}/tests/unit_tests/test_files'
 
-SUCCESS_FILE_NAME = 'success_1_all_attrs.zip'
+SUCCESS_FILE_NAME = 'success.zip'
 FAILURE_FILE_NAME = 'fail_rules_1.zip'
 
 DATA_TYPE = 'gtfs_pathways'
