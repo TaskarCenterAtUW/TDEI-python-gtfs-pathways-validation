@@ -4,14 +4,14 @@
   "data": {
     "stage": "Pathways-Upload",
     "request": {
-      "tdei_project_group_id": "0b41ebc5-350c-42d3-90af-3af4ad3628fb",
-      "tdei_station_id": "5e20eb06-a950-4a5d-a9ca-1e390a801b8a",
+      "tdei_station_id": "f3839bf9-b32d-46ba-aa85-e5ff0451537e",
+      "tdei_project_group_id": "e1956869-02d9-4e14-8391-6024406ced41",
       "collected_by": "6D3E5B8C-FB16-4B6A-9436-72FD24756CC9",
       "collection_date": "2022-11-22T09:43:07.978Z",
       "collection_method": "manual",
-      "valid_from": "2022-11-22T09:43:07.978Z",
-      "valid_to": "2022-11-2T09:43:07.978Z",
-      "data_source": "InHouse",
+      "valid_from": "2023-02-10T09:30Z",
+      "valid_to": "2024-03-10T09:30Z",
+      "data_source": "3rdParty",
       "polygon": {
         "type": "FeatureCollection",
         "features": [
@@ -22,28 +22,29 @@
               "coordinates": [
                 [
                   [
-                    77.588807608,
-                    12.976222962
+                    73.013218,
+                    12.228246
                   ],
                   [
-                    77.589285425,
-                    12.972094479
+                    71.515847,
+                    13.3394
                   ],
                   [
-                    77.593012392,
-                    12.974608826
+                    77.39744,
+                    13.184287
                   ],
                   [
-                    77.588839463,
-                    12.976254003
+                    70.22299,
+                    13.359333
                   ],
                   [
-                    77.588807608,
-                    12.976222962
+                    73.013218,
+                    12.228246
                   ]
                 ]
               ]
-            }
+            },
+            "properties": {}
           }
         ]
       },

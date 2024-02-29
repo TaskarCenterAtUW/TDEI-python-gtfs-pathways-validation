@@ -6,8 +6,7 @@ from pathlib import Path
 from typing import Union, Any
 from .config import Settings
 
-from tdei_gtfs_csv_validator import gcv_test_release
-from tdei_gtfs_csv_validator import exceptions as gcvex
+from gtfs_canonical_validator import CanonicalValidator
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Path used for download file generation.
@@ -16,9 +15,6 @@ DOWNLOAD_FILE_PATH = f'{Path.cwd()}/downloads'
 logging.basicConfig()
 logger = logging.getLogger('PATHWAYS_VALIDATION')
 logger.setLevel(logging.INFO)
-
-DATA_TYPE = 'gtfs_pathways'
-SCHEMA_VERSION = 'v1.0'
 
 
 class GTFSPathwaysValidation:
@@ -45,14 +41,14 @@ class GTFSPathwaysValidation:
         root, ext = os.path.splitext(self.file_relative_path)
         if ext and ext.lower() == '.zip':
             downloaded_file_path = self.download_single_file(self.file_path)
-            try:
-                logger.info(f' Downloaded file path: {downloaded_file_path}')
-                gcv_test_release.test_release(DATA_TYPE, SCHEMA_VERSION, downloaded_file_path)
-                is_valid = True
-            except Exception as err:
-                traceback.print_exc()
-                validation_message = str(err)
-                logger.error(f' Error While Validating File: {str(err)}')
+            logger.info(f' Downloaded file path: {downloaded_file_path}')
+            pathways_validator = CanonicalValidator(zip_file=downloaded_file_path)
+            result = pathways_validator.validate()
+
+            is_valid = result.status
+            if result.error is not None:
+                validation_message = str(result.error)
+                logger.error(f' Error While Validating File: {str(result.error)}')
             GTFSPathwaysValidation.clean_up(downloaded_file_path)
         else:
             logger.error(f' Failed to validate because unknown file format')
