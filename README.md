@@ -23,9 +23,9 @@ The project is built on Python with FastAPI framework. All the regular nuances f
 - Connecting this to cloud will need the following in the `.env` file
 
 ```bash
-UPLOAD_TOPIC=xxxx
-UPLOAD_SUBSCRIPTION=xxxx
-VALIDATION_TOPIC=xxxx
+REQUEST_TOPIC=xxx
+RESPONSE_TOPIC=xxx
+REQUEST_SUBSCRIPTION=xxx
 QUEUECONNECTION=xxxx
 STORAGECONNECTION=xxxx
 ```

@@ -19,9 +19,9 @@ class GTFSPathwaysValidator:
     def __init__(self):
         core = Core()
         settings = Settings()
-        self._subscription_name = settings.subscription_name
-        self.listening_topic = core.get_topic(topic_name=settings.subscription_topic_name)
-        self.publish_topic = core.get_topic(topic_name=settings.publishing_topic_name)
+        self._subscription_name = settings.request_subscription
+        self.request_topic = core.get_topic(topic_name=settings.request_topic_name)
+        self.response_topic = core.get_topic(topic_name=settings.response_topic_name)
         self.logger = core.get_logger()
         self.storage_client = core.get_storage_client()
         self.subscribe()
@@ -48,7 +48,7 @@ class GTFSPathwaysValidator:
             else:
                 logger.info(' No Message')
 
-        self.listening_topic.subscribe(subscription=self._subscription_name, callback=process)
+        self.request_topic.subscribe(subscription=self._subscription_name, callback=process)
 
     def send_status(self, valid: bool, upload_message: FileUploadMsg, validation_message: str = '') -> None:
         # upload_message.data.stage = 'pathways-validation'
@@ -72,5 +72,5 @@ class GTFSPathwaysValidator:
             'messageType': upload_message.messageType,
             'data': response_message
         })
-        self.publish_topic.publish(data=data)
+        self.response_topic.publish(data=data)
         return

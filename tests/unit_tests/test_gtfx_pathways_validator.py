@@ -9,8 +9,8 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         with patch.object(GTFSPathwaysValidator, '__init__', return_value=None):
             self.validator = GTFSPathwaysValidator()
             self.validator._subscription_name = MagicMock()
-            self.validator.listening_topic = MagicMock()
-            self.validator.publish_topic = MagicMock()
+            self.validator.request_topic = MagicMock()
+            self.validator.response_topic = MagicMock()
             self.validator.logger = MagicMock()
             self.validator.storage_client = MagicMock()
 
