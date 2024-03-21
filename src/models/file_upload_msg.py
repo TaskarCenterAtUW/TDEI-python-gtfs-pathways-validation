@@ -6,7 +6,7 @@ from typing import Optional, Dict
 class IncomingData:
     file_upload_path:str
     user_id:str 
-    tdei_project_group_id: str
+    tdei_project_group_id: Optional[str] = ""
 
 @dataclass
 class FileUploadMsg: 
