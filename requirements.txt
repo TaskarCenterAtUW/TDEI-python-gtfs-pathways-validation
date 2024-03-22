@@ -8,3 +8,4 @@ httpx==0.24.1
 coverage==7.2.7
 html_testRunner==1.2.1
 gtfs-canonical-validator==0.0.3
+uvicorn==0.20.0
