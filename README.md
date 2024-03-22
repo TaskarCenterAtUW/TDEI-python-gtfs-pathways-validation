@@ -23,9 +23,9 @@ The project is built on Python with FastAPI framework. All the regular nuances f
 - Connecting this to cloud will need the following in the `.env` file
 
 ```bash
-UPLOAD_TOPIC=xxxx
-UPLOAD_SUBSCRIPTION=xxxx
-VALIDATION_TOPIC=xxxx
+REQUEST_TOPIC=xxx
+RESPONSE_TOPIC=xxx
+REQUEST_SUBSCRIPTION=xxx
 QUEUECONNECTION=xxxx
 STORAGECONNECTION=xxxx
 ```
@@ -108,10 +108,33 @@ graph LR;
   A(gtfs-pathways-upload)-->B[gtfs-pathways-validation-service];
   B-->C(gtfs-pathways-validation)
 ```
-#### Incoming
-The incoming messages will be from the upload queue `gtfs-pathways-upload`.
-The format is mentioned in [msg-gtfs-pathways-upload.json](./src/assets/msg-gtfs-pathways-upload.json)
+#### Incoming Message
 
-#### Outgoing
-The outgoing messages will be to the `gtfs-pathways-validation` topic.
-The format of the message is at [gtfs-pathways-validation.json](./src/assets/msg-gtfs-pathways-validation.json)
+```json
+{
+    "messageId": "c8c76e89f30944d2b2abd2491bd95337",
+    "messageType": "workflow_identifier",
+    "data": {
+      "file_upload_path": "https://tdeisamplestorage.blob.core.windows.net/gtfsflex/tests/success_1_all_attrs.zip",
+      "user_id": "c59d29b6-a063-4249-943f-d320d15ac9ab",
+      "tdei_project_group_id": "0b41ebc5-350c-42d3-90af-3af4ad3628fb"
+    }
+  }
+
+```
+
+#### Outgoing Message
+```json
+{
+    "messageId": "c8c76e89f30944d2b2abd2491bd95337",
+    "messageType": "workflow_identifier",
+    "data": {
+      "file_upload_path": "https://tdeisamplestorage.blob.core.windows.net/osw/test_upload/valid.zip",
+      "user_id": "c59d29b6-a063-4249-943f-d320d15ac9ab",
+      "tdei_project_group_id": "0b41ebc5-350c-42d3-90af-3af4ad3628fb",
+      "success": true,
+      "message": ""
+    }
+  }
+
+```
