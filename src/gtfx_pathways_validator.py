@@ -7,6 +7,7 @@ from .config import Settings
 from .gtfs_pathways_validation import GTFSPathwaysValidation
 from .serializer.gtfs_pathways_serializer import GTFSPathwaysUpload
 from .models.file_upload_msg import FileUploadMsg
+import threading
 
 logging.basicConfig()
 logger = logging.getLogger('PATHWAYS_VALIDATOR')
@@ -33,22 +34,25 @@ class GTFSPathwaysValidator:
                 gtfs_upload_message = QueueMessage.to_dict(message)
                 upload_msg = FileUploadMsg.from_dict(gtfs_upload_message)
                 logger.info(upload_msg)
-                file_upload_path = urllib.parse.unquote(upload_msg.data.file_upload_path)
-                logger.info(f' Received message for Project Group: {upload_msg.data.tdei_project_group_id}')
-                logger.info(file_upload_path)
-                
-                if file_upload_path:
-                    # Do the validation in the other class
-                    validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
-                    validation = validator.validate()
-                    self.send_status(valid=validation[0], upload_message=upload_msg,
-                                     validation_message=validation[1])
-                else:
-                    logger.info(' No file Path found in message!')
+                process_thread = threading.Thread(target=self.process_message,args=[upload_msg])
+                process_thread.start()
             else:
                 logger.info(' No Message')
 
         self.request_topic.subscribe(subscription=self._subscription_name, callback=process)
+
+    def process_message(self, upload_msg: FileUploadMsg) -> None:
+        file_upload_path = urllib.parse.unquote(upload_msg.data.file_upload_path)
+        logger.info(f' Received message for Project Group: {upload_msg.data.tdei_project_group_id}')
+        logger.info(file_upload_path)
+        if file_upload_path:
+            # Do the validation in the other class
+            validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
+            validation = validator.validate()
+            self.send_status(valid=validation[0], upload_message=upload_msg,
+                                validation_message=validation[1])
+        else:
+            logger.info(' No file Path found in message!')
 
     def send_status(self, valid: bool, upload_message: FileUploadMsg, validation_message: str = '') -> None:
         # upload_message.data.stage = 'pathways-validation'
