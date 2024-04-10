@@ -1,0 +1,21 @@
+on:
+  workflow_dispatch:
+
+permissions:
+      id-token: write
+      contents: read
+jobs:
+  PushToAzure:
+    environment: Development
+    runs-on: ubuntu-latest
+    steps:
+      - name: Login to Azure
+        uses: azure/login@v2.0.0
+        with:
+          creds: ${{secrets.AZURE_CREDS}}
+      - name: Deploy to Dev
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{secrets.AZURE_WEBAPP_NAME}}
+          images: ${{secrets.REGISTRY_DOMAIN}}/${{secrets.REGISTRY_REPO}}:31baadf060a92a69cbb8f5c6c5011b742a807691
+      

@@ -61,7 +61,7 @@ class TestGTFSPathwaysIntegration(unittest.TestCase):
         validator = GTFSPathwaysValidator()
         subscribe_function = MagicMock()
         message = QueueMessage.data_from({'message': '', 'data': self.test_data})
-        validator.publish_topic.publish(data=message)
+        validator.response_topic.publish(data=message)
         validation_topic = self.core.get_topic(topic_name=self.validation_topic_name)
         async with validation_topic.subscribe(subscription='temp-validation-result', callback=subscribe_function):
             await asyncio.sleep(0.5)  # Wait for callback

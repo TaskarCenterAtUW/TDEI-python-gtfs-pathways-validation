@@ -62,7 +62,7 @@
       "pathways_schema_version": "1.0.0"
     },
     "meta": {
-      "file_upload_path": "https://tdeisamplestorage.blob.core.windows.net/gtfspathways/tests/success_1_all_attrs.zip"
+      "file_upload_path": "https://tdeisamplestorage.blob.core.windows.net/gtfspathways/tests/success.zip"
     },
     "response": {
       "success": true,
