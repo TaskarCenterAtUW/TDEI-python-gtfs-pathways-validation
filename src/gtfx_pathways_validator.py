@@ -47,10 +47,14 @@ class GTFSPathwaysValidator:
         logger.info(file_upload_path)
         if file_upload_path:
             # Do the validation in the other class
-            validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
-            validation = validator.validate()
-            self.send_status(valid=validation[0], upload_message=upload_msg,
-                                validation_message=validation[1])
+            try:
+                validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
+                validation = validator.validate()
+                self.send_status(valid=validation[0], upload_message=upload_msg,
+                                    validation_message=validation[1])
+            except Exception as e:
+                logger.error(f' Error: {e}')
+                self.send_status(valid=False, upload_message=upload_msg, validation_message=str(e))
         else:
             logger.info(' No file Path found in message!')
 
