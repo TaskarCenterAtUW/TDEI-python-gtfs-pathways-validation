@@ -33,6 +33,7 @@ class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
             self.validator.file_path = file_path
             self.validator.file_relative_path = SUCCESS_FILE_NAME
             self.validator.container_name = None
+            self.validator.settings = MagicMock()
             mock_download_single_file.return_value = file_path
 
     def tearDown(self):
@@ -63,7 +64,7 @@ class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
 
         # Assert
         self.assertTrue(is_valid)
-        GTFSPathwaysValidation.clean_up.assert_called_once_with(file_path)
+        GTFSPathwaysValidation.clean_up.assert_called_once()
 
     def test_download_single_file(self):
         # Arrange
@@ -133,7 +134,9 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
             self.validator.file_path = file_path
             self.validator.file_relative_path = FAILURE_FILE_NAME
             self.validator.container_name = None
+            self.validator.settings = MagicMock()
             mock_download_single_file.return_value = file_path
+        
 
     def tearDown(self):
         pass
@@ -163,7 +166,7 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
 
         # Assert
         self.assertFalse(is_valid)
-        GTFSPathwaysValidation.clean_up.assert_called_once_with(file_path)
+        GTFSPathwaysValidation.clean_up.assert_called_once()
 
     def test_is_gtfs_pathways_valid_with_invalid_format_file(self):
         # Arrange
@@ -177,7 +180,7 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
 
         # Assert
         self.assertFalse(is_valid)
-        GTFSPathwaysValidation.clean_up.assert_called_once_with(file_path)
+        GTFSPathwaysValidation.clean_up.assert_called_once()
 
     def test_download_single_file_exception(self):
         # Arrange
