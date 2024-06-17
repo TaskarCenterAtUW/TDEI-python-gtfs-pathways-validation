@@ -5,6 +5,8 @@ import traceback
 from pathlib import Path
 from typing import Union, Any
 from .config import Settings
+import uuid
+
 
 from gtfs_canonical_validator import CanonicalValidator
 
@@ -25,6 +27,7 @@ class GTFSPathwaysValidation:
         self.file_path = file_path
         self.file_relative_path = file_path.split('/')[-1]
         self.client = self.storage_client.get_container(container_name=self.container_name)
+        self.settings = settings
 
     # Facade function to validate the file
     # Focuses on the file name with file name validation
@@ -49,7 +52,7 @@ class GTFSPathwaysValidation:
             if result.error is not None:
                 validation_message = str(result.error)
                 logger.error(f' Error While Validating File: {str(result.error)}')
-            GTFSPathwaysValidation.clean_up(downloaded_file_path)
+            GTFSPathwaysValidation.clean_up(os.path.dirname(downloaded_file_path))
         else:
             logger.error(f' Failed to validate because unknown file format')
 
@@ -59,18 +62,20 @@ class GTFSPathwaysValidation:
     # file_upload_path is the fullUrl of where the
     # file is uploaded.
     def download_single_file(self, file_upload_path=None) -> str:
-        is_exists = os.path.exists(DOWNLOAD_FILE_PATH)
-        if not is_exists:
-            os.makedirs(DOWNLOAD_FILE_PATH)
+        unique_folder = self.settings.get_unique_id()
+        dl_folder_path = os.path.join(DOWNLOAD_FILE_PATH, unique_folder)
+
+        if not os.path.exists(dl_folder_path):
+            os.makedirs(dl_folder_path)
 
         file = self.storage_client.get_file_from_url(self.container_name, file_upload_path)
         try:
             if file.file_path:
                 file_path = os.path.basename(file.file_path)
-                with open(f'{DOWNLOAD_FILE_PATH}/{file_path}', 'wb') as blob:
+                with open(f'{dl_folder_path}/{file_path}', 'wb') as blob:
                     blob.write(file.get_stream())
-                logger.info(f' File downloaded to location: {DOWNLOAD_FILE_PATH}/{file_path}')
-                return f'{DOWNLOAD_FILE_PATH}/{file_path}'
+                logger.info(f' File downloaded to location: {dl_folder_path}/{file_path}')
+                return f'{dl_folder_path}/{file_path}'
             else:
                 logger.info(' File not found!')
         except Exception as e:
