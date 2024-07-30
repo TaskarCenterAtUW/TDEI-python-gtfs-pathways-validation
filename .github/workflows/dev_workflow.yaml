@@ -1,18 +1,19 @@
-
 on:
+  push:
+    branches: [1094]
   pull_request:
     branches: [dev]
     types:
       - closed
   workflow_dispatch:
 permissions:
-      id-token: write
-      contents: read
+  id-token: write
+  contents: read
 jobs:
   Build:
     environment: Development
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true    
+    # if: github.event.pull_request.merged == true
     steps:
       - uses: actions/checkout@v2
       - uses: azure/docker-login@v1
@@ -26,16 +27,33 @@ jobs:
           docker push ${{ secrets.REGISTRY_DOMAIN }}/${{ secrets.REGISTRY_REPO }} --all-tags
   Deploy:
     needs: Build
-    environment: 
+    environment:
       name: Development
     runs-on: ubuntu-latest
     steps:
-    - name: Login to Azure
-      uses: azure/login@v2.0.0
-      with:
-        creds: ${{secrets.TDEI_CORE_AZURE_CREDS}}
-    - name: Deploy to Dev
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-        images: ${{ secrets.REGISTRY_DOMAIN }}/${{ secrets.REGISTRY_REPO }}:${{ github.sha }}
+      - name: Login to Azure
+        uses: azure/login@v2.0.0
+        with:
+          creds: ${{secrets.TDEI_CORE_AZURE_CREDS}}
+      - name: Deploy to Dev
+        uses: azure/aci-deploy@v1
+        with:
+          resource-group: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          name: gtfspathwaysdev
+          dns-name-label: gtfspathwaysdev${{github.run_number}}
+          images: ${{ secrets.REGISTRY_DOMAIN }}/${{ secrets.REGISTRY_REPO }}:${{ github.sha }}
+          registry-login-server: ${{ secrets.REGISTRY_DOMAIN }}
+          registry-username: ${{ secrets.REGISTRY_USERNAME }}
+          registry-password: ${{ secrets.REGISTRY_PASSWORD }}
+          location: "west us"
+          cpu: 2
+          memory: 3.5
+          ports: 8080
+          environment-variables: |
+            QUEUECONNECTION=${{ secrets.QUEUECONNECTION }}
+            STORAGECONNECTION=${{ secrets.STORAGECONNECTION }}
+            REQUEST_TOPIC=pathways-validation-request
+            RESPONSE_TOPIC=pathways-validation-response
+            REQUEST_SUBSCRIPTION=request-handler
+            AUTH_PERMISSION_URL=${{ secrets.AUTH_PERMISSION_URL }}
+            PROVIDER=Azure
