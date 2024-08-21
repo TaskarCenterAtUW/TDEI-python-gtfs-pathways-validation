@@ -40,22 +40,23 @@ class GTFSPathwaysValidator:
         self.request_topic.subscribe(subscription=self._subscription_name, callback=process)
 
     def process_message(self, upload_msg: FileUploadMsg) -> None:
-        file_upload_path = urllib.parse.unquote(upload_msg.data.file_upload_path)
-        logger.info(f' Received message for Project Group: {upload_msg.data.tdei_project_group_id}')
-        logger.info(f' Message ID: {upload_msg.messageId}')
-        logger.info(file_upload_path)
-        if file_upload_path:
-            # Do the validation in the other class
-            try:
+        try:
+            file_upload_path = urllib.parse.unquote(upload_msg.data.file_upload_path)
+            logger.info(f' Received message for Project Group: {upload_msg.data.tdei_project_group_id}')
+            logger.info(f' Message ID: {upload_msg.messageId}')
+            logger.info(file_upload_path)
+            if file_upload_path:
+                # Do the validation in the other class
                 validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
                 validation = validator.validate()
                 self.send_status(valid=validation[0], upload_message=upload_msg,
                                     validation_message=validation[1])
-            except Exception as e:
+            else:
+                logger.info(' No file Path found in message!')
+                self.send_status(valid=False, upload_message=upload_msg, validation_message='No file Path found in message!')
+        except Exception as e:
                 logger.error(f' Error: {e}')
                 self.send_status(valid=False, upload_message=upload_msg, validation_message=str(e))
-        else:
-            logger.info(' No file Path found in message!')
 
     def send_status(self, valid: bool, upload_message: FileUploadMsg, validation_message: str = '') -> None:
         response_message = {
