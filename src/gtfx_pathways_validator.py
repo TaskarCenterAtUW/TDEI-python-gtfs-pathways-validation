@@ -24,7 +24,8 @@ class GTFSPathwaysValidator:
         self.request_topic = self.core.get_topic(topic_name=self.settings.request_topic_name,max_concurrent_messages=self.settings.max_concurrent_messages)
         self.logger = self.core.get_logger()
         self.storage_client = self.core.get_storage_client()
-        self.subscribe()
+        self.listening_thread = threading.Thread(target=self.subscribe)
+        self.listening_thread.start()
 
     def subscribe(self) -> None:
         # Process the incoming message
@@ -76,4 +77,8 @@ class GTFSPathwaysValidator:
         })
         response_topic = self.core.get_topic(topic_name=self.settings.response_topic_name)
         response_topic.publish(data=data)
+        return
+
+    def stop_listening(self):
+        self.listening_thread.join(timeout=0)
         return
