@@ -1,11 +1,11 @@
 fastapi==0.88.0
 pydantic==1.10.4
-psutil==5.9.5
-python-dotenv==0.21.0
-python-ms-core==0.0.18
+psutil~=5.9.8
+python-dotenv==1.0.1
+python-ms-core==0.0.22
 jsonschema==4.17.3
-httpx==0.24.1
-coverage==7.2.7
+httpx~=0.27.0
+coverage~=7.5.1
 html_testRunner==1.2.1
-gtfs-canonical-validator==0.0.3
+gtfs-canonical-validator==0.0.4
 uvicorn==0.20.0

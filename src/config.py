@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     response_topic_name: str = os.environ.get('RESPONSE_TOPIC', None)
     request_subscription: str = os.environ.get('REQUEST_SUBSCRIPTION', None)
     storage_container_name: str = os.environ.get('CONTAINER_NAME', 'gtfspathways')
-
+    max_concurrent_messages: int = os.environ.get('MAX_CONCURRENT_MESSAGES', 2)
+    
     def get_unique_id(self) -> str:
         return str(uuid.uuid4())
