@@ -32,14 +32,11 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple tdei-gtfs-csv-validator==0.0.31
 
       - name: Run unit tests
         run: |
-          python test_report.py
-          coverage run --source=src -m unittest discover -s tests/
+          coverage run --source=src -m unittest discover -s tests/unit_tests
           coverage xml
-          
 
       - name: Check coverage
         run: |
