@@ -38,15 +38,9 @@ jobs:
         run: |
           python test_report.py
           coverage run --source=src -m unittest discover -s tests/
-          coverage report -m
-          exit_status=$?
+          coverage xml
           
-          # Set the exit status as an output for later use
-          echo "::set-output name=exit_status::$exit_status"
 
-      - name: Archive Coverage Report
-        if: ${{ always() }}  # Upload the coverage report even if tests fail
-        uses: actions/upload-artifact@v2
-        with:
-          name: htmlcov
-          path: htmlcov
+      - name: Check coverage
+        run: |
+          coverage report --fail-under=75
