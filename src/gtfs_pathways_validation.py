@@ -33,14 +33,6 @@ PATHWAYS_FIELDS = {
 # files related to pathways    
 PATHWAYS_FILES = ["pathways.txt", "levels.txt"]
 
-FLEX_FATAL_ERROR_CODES = [ "missing_required_element", "unsupported_feature_type", "unsupported_geo_json_type", "unsupported_geometry_type", 
-                          "invalid_geometry", "forbidden_prior_day_booking_field_value", "forbidden_prior_notice_start_day", "forbidden_prior_notice_start_time", 
-                          "forbidden_real_time_booking_field_value", "forbidden_same_day_booking_field_value", "invalid_prior_notice_duration_min", 
-                          "missing_prior_day_booking_field_value", "missing_prior_notice_duration_min", "missing_prior_notice_start_time", 
-                          "prior_notice_last_day_after_start_day"]
-
-FLEX_FILES = ["locations.geojson", "booking_rules.txt", "location_groups.txt", "location_group_stops.txt" ]
-
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 # Path used for download file generation.
 DOWNLOAD_FILE_PATH = f'{Path.cwd()}/downloads'
