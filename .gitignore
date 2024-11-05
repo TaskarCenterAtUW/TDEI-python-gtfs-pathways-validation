@@ -134,3 +134,4 @@ dmypy.json
 reports/
 test_report.html
 integration_test_report.html
+/.vscode
