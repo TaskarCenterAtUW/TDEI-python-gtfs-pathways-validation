@@ -22,6 +22,50 @@ FAILURE4_FILE_NAME = 'pathways-explicit-error.zip'
 DATA_TYPE = 'gtfs_pathways'
 SCHEMA_VERSION = 'v1.0'
 
+class TestGoodFile1(unittest.TestCase):
+
+    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    def setUp(self, mock_download_single_file):
+        os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
+        source = f'{SAVED_FILE_PATH}/{SUCCESS2_FILE_NAME}'
+        destination = f'{DOWNLOAD_FILE_PATH}/{SUCCESS2_FILE_NAME}'
+
+        if not os.path.isfile(destination):
+            shutil.copyfile(source, destination)
+
+        file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS2_FILE_NAME}'
+
+        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
+            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+            self.validator.file_path = file_path
+            self.validator.file_relative_path = SUCCESS2_FILE_NAME
+            self.validator.container_name = None
+            self.validator.settings = MagicMock()
+            mock_download_single_file.return_value = file_path
+
+    def tearDown(self):
+        pass
+
+    def test(self):
+        # Arrange
+        source = f'{SAVED_FILE_PATH}/{SUCCESS2_FILE_NAME}'
+        destination = f'{DOWNLOAD_FILE_PATH}/{SUCCESS2_FILE_NAME}'
+
+        if not os.path.isfile(destination):
+            shutil.copyfile(source, destination)
+
+        file_path = f'{SAVED_FILE_PATH}/{SUCCESS2_FILE_NAME}'
+
+        expected_downloaded_file_path = file_path
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+        GTFSPathwaysValidation.clean_up = MagicMock()
+
+        # Act
+        is_valid, errors = self.validator.validate()
+
+        # Assert
+        self.assertTrue(is_valid)
+
 class TestGoodFile2(unittest.TestCase):
 
     @patch.object(GTFSPathwaysValidation, 'download_single_file')
