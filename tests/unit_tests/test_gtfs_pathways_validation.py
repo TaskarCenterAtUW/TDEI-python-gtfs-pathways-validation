@@ -485,5 +485,262 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
         self.assertEqual(content, b'file_content')
 
 
+class TestGTFSPathwaysValidationInit(unittest.TestCase):
+    @patch('src.gtfs_pathways_validation.Settings')
+    def test_initialization(self, mock_settings):
+        # Arrange
+        mock_storage_client = MagicMock()
+        mock_container = MagicMock()
+        mock_storage_client.get_container.return_value = mock_container
+
+        mock_settings_instance = mock_settings.return_value
+        mock_settings_instance.storage_container_name = "test_container"
+        mock_settings_instance.get_unique_id.return_value = "unique_prefix"
+
+        file_path = "path/to/file.zip"
+
+        # Act
+        validation_instance = GTFSPathwaysValidation(
+            file_path=file_path,
+            storage_client=mock_storage_client,
+        )
+
+        # Assert
+        self.assertEqual(validation_instance.file_path, file_path)
+        self.assertEqual(validation_instance.file_relative_path, "file.zip")
+        self.assertEqual(validation_instance.container_name, "test_container")
+        self.assertEqual(validation_instance.client, mock_container)
+
+        mock_storage_client.get_container.assert_called_once_with(container_name="test_container")
+
+    @patch('src.gtfs_pathways_validation.Settings')
+    def test_initialization_with_prefix(self, mock_settings):
+        # Arrange
+        mock_storage_client = MagicMock()
+        mock_container = MagicMock()
+        mock_storage_client.get_container.return_value = mock_container
+
+        mock_settings_instance = mock_settings.return_value
+        mock_settings_instance.storage_container_name = "test_container"
+
+        file_path = "path/to/file.zip"
+        custom_prefix = "custom_prefix"
+
+        # Act
+        validation_instance = GTFSPathwaysValidation(
+            file_path=file_path,
+            storage_client=mock_storage_client
+        )
+
+        # Assert
+        self.assertEqual(validation_instance.container_name, "test_container")
+        self.assertEqual(validation_instance.file_relative_path, "file.zip")
+
+        mock_storage_client.get_container.assert_called_once_with(container_name="test_container")
+
+
+class TestGTFSPathwaysValidationOther(unittest.TestCase):
+
+    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    def setUp(self, mock_download_single_file):
+        os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
+        source = f'{SAVED_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        destination = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+
+        if not os.path.isfile(destination):
+            shutil.copyfile(source, destination)
+
+        file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+
+        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
+            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+            self.validator.file_path = file_path
+            self.validator.file_relative_path = SUCCESS_FILE_NAME
+            self.validator.container_name = None
+            self.validator.settings = MagicMock()
+            mock_download_single_file.return_value = file_path
+            self.validator.clean_up = MagicMock()
+
+    def tearDown(self):
+        pass
+
+    def test_clean_up_non_existent_path(self):
+        # Arrange
+        non_existent_path = f'{DOWNLOAD_FILE_PATH}/non_existent_file_or_folder'
+
+        # Act
+        try:
+            GTFSPathwaysValidation.clean_up(non_existent_path)
+            success = True
+        except Exception:
+            success = False
+        # Assert
+        self.assertTrue(success)
+
+
+    def test_is_pathways_valid_with_wrong_file_extension(self):
+
+        self.validator.file_relative_path = f'{DOWNLOAD_FILE_PATH}/test.txt'
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_with_errors(self, mock_canonical_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
+        ]
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+        self.assertIn('INVALID_FIELD', validation_message)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_to_convert_error_to_warning(self, mock_canonical_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'block_trips_with_overlapping_stop_times',
+             'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
+        ]
+        mock_result.info = None
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertTrue(is_valid)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_for_fatal_errors(self, mock_canonical_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'bidirectional_exit_gate',
+             'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'filename': 'trips.txt'}]}
+        ]
+        mock_result.info = None
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_with_other(self, mock_canonical_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'sample_code',
+             'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'filename': 'trips.txt'}]}
+        ]
+        mock_result.info = None
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_with_invalid_pathways_file(self, mock_canonical_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'sample_code',
+             'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'filename': 'pathways.txt'}]}
+        ]
+        mock_result.info = None
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_with_child_reference(self, mock_canonical_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'sample_code',
+             'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'childFilename': 'pathways.txt'}]}
+        ]
+        mock_result.info = None
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+
+    @patch('src.gtfs_pathways_validation.logger')
+    def test_download_single_file_with_no_file_path(self, mock_logger):
+        validator = GTFSPathwaysValidation(file_path="mock_path", storage_client=MagicMock())
+        validator.storage_client.get_file_from_url.return_value = MagicMock(file_path=None)
+
+        # Act
+        result = validator.download_single_file(file_upload_path="mock_file_path.zip")
+
+        # Assert
+        assert result is None
+        mock_logger.info.assert_called_once_with(' File not found!')
+
+    @patch('src.gtfs_pathways_validation.logger')
+    def test_download_single_file_with_exception(self, mock_logger):
+        # Arrange
+        validator = GTFSPathwaysValidation(file_path="mock_path", storage_client=MagicMock())
+        validator.storage_client.get_file_from_url.side_effect = Exception("Mocked exception")
+
+        # Act
+        result = validator.download_single_file(file_upload_path="mock_file_path.zip")
+
+        # Assert
+        assert result is None
+        mock_logger.error.assert_called_once()
+        # Extract the exception passed to logger.error and check its message
+        logged_exception = mock_logger.error.call_args[0][0]
+        assert isinstance(logged_exception, Exception)
+        assert str(logged_exception) == "Mocked exception"
+
+
 if __name__ == '__main__':
     unittest.main()
