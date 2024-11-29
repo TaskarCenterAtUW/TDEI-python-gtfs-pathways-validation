@@ -111,8 +111,8 @@ class GTFSPathwaysValidation:
         if not os.path.exists(dl_folder_path):
             os.makedirs(dl_folder_path)
 
-        file = self.storage_client.get_file_from_url(self.container_name, file_upload_path)
         try:
+            file = self.storage_client.get_file_from_url(self.container_name, file_upload_path)
             if file.file_path:
                 file_path = os.path.basename(file.file_path)
                 with open(f'{dl_folder_path}/{file_path}', 'wb') as blob:
