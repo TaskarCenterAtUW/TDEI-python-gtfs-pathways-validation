@@ -86,7 +86,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
                                                            validation_message='No file Path found in message!')
 
     @patch('src.gtfx_pathways_validator.GTFSPathwaysValidation')
-    def test_process_message_with_exceptionh(self, mock_validation_instance):
+    def test_process_message_with_exception(self, mock_validation_instance):
         # Arrange
         mock_request_message = MagicMock()
         mock_request_message.data.file_upload_path = 'test_dataset_url'
