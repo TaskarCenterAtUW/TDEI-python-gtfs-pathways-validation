@@ -1,11 +1,10 @@
 import logging
-import uuid
 import urllib.parse
 from python_ms_core import Core
 from python_ms_core.core.queue.models.queue_message import QueueMessage
 from .config import Settings
 from .gtfs_pathways_validation import GTFSPathwaysValidation
-from .serializer.gtfs_pathways_serializer import GTFSPathwaysUpload
+from gtfs_canonical_validator import CanonicalValidator
 from .models.file_upload_msg import FileUploadMsg
 import threading
 
@@ -61,11 +60,15 @@ class GTFSPathwaysValidator:
 
     def send_status(self, valid: bool, upload_message: FileUploadMsg, validation_message: str = '') -> None:
         response_message = {
-                "file_upload_path": upload_message.data.file_upload_path,
-                "user_id": upload_message.data.user_id ,
-                "tdei_project_group_id": upload_message.data.tdei_project_group_id,
-                "success": valid,
-                "message": validation_message
+                'file_upload_path': upload_message.data.file_upload_path,
+                'user_id': upload_message.data.user_id ,
+                'tdei_project_group_id': upload_message.data.tdei_project_group_id,
+                'success': valid,
+                'message': validation_message,
+                'package': {
+                    'python-ms-core': Core.__version__,
+                    'gtfs-canonical-validator': CanonicalValidator.__version__
+                }
             }
         logger.info(
             f' Publishing new message with ID: {upload_message.messageId} with status: {valid} and Message: {validation_message}')
