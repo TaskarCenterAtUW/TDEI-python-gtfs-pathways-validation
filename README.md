@@ -141,3 +141,6 @@ graph LR;
   }
 
 ```
+
+## Testing Locally
+- To test the local files for validation, use [tease.py](./tease.py) 
