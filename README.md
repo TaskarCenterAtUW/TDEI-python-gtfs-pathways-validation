@@ -1,9 +1,9 @@
 # TDEI-python-gtfs-pathways-validation
 
-[![Unit Tests](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml/badge.svg)](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml)
-![Coverage](https://raw.githubusercontent.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/badges/coverage.svg)
-[![gtfs-canonical-validator](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Egtfs-canonical-validator%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=gtfs-canonical-validator&color=blue)](https://pypi.org/project/gtfs-canonical-validator/)
-[![python-ms-core](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Epython-ms-core%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=python-ms-core&color=blue)](https://pypi.org/project/python-ms-core/)
+[![Unit Tests](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml/badge.svg?cacheSeconds=60)](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml)
+![Coverage](https://raw.githubusercontent.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/badges/coverage.svg?cacheSeconds=60)
+[![gtfs-canonical-validator](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Egtfs-canonical-validator%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=gtfs-canonical-validator&color=blue&cacheSeconds=60)](https://pypi.org/project/gtfs-canonical-validator/)
+[![python-ms-core](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Epython-ms-core%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=python-ms-core&color=blue&cacheSeconds=60)](https://pypi.org/project/python-ms-core/)
 
 ## Introduction 
 Service to Validate the GTFS pathways file that is uploaded. At the moment, the service does the following:
