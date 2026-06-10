@@ -2,6 +2,7 @@ import os
 import shutil
 import logging
 import traceback
+import json
 from pathlib import Path
 from typing import Union, Any
 from .config import Settings
@@ -47,19 +48,22 @@ class GTFSPathwaysValidation:
             result = pathways_validator.validate()
 
             is_valid = result.status
+            validation_errors = self.parse_validation_errors(result.error)
+            validation_info = self.parse_validation_errors(result.info)
             if result.error is not None:
-                validation_message = str(result.error)
-                logger.error(f' Error While Validating File: {str(result.error)}')
+                validation_message = self.format_validation_errors(validation_errors)
+                logger.error(f' Error While Validating File: {validation_message}')
 
-            if isinstance(result.error, list) and result.error is not None:
-                for error in result.error[:]:
+            if isinstance(validation_errors, list):
+                for error in validation_errors[:]:
                     # change some smaller errors to warnings instead to relax the strict validation MD gives us
                     if error['code'] in CHANGE_ERROR_TO_WARNING:
-                        if result.info is None:
-                            result.info = []
+                        if not isinstance(validation_info, list):
+                            validation_info = []
 
-                        result.info.append(error)
-                        result.error.remove(error)
+                        validation_info.append(error)
+                        result.info = validation_info
+                        validation_errors.remove(error)
                         continue
 
                     # these are error codes from MD that relate to pathways that are fatal
@@ -89,17 +93,34 @@ class GTFSPathwaysValidation:
                                 continue
 
                 # if all errors have been downgraded to warnings, mark us as a success
-                if len(result.error) == 0:
+                if len(validation_errors) == 0:
                     is_valid = True
 
-                if result.error is not None:
-                    validation_message = str(result.error)
-                    logger.error(f' Error While Validating File: {str(result.error)}')
+                if validation_errors is not None:
+                    validation_message = self.format_validation_errors(validation_errors)
+                    logger.error(f' Error While Validating File: {validation_message}')
             GTFSPathwaysValidation.clean_up(os.path.dirname(downloaded_file_path))
         else:
             logger.error(f' Failed to validate because unknown file format')
 
         return is_valid, validation_message
+
+    @staticmethod
+    def parse_validation_errors(errors: Any) -> Any:
+        if isinstance(errors, str):
+            try:
+                return json.loads(errors)
+            except json.JSONDecodeError:
+                return errors
+
+        return errors
+
+    @staticmethod
+    def format_validation_errors(errors: Any) -> str:
+        if isinstance(errors, str):
+            return errors
+
+        return json.dumps(errors, default=str)
 
     # Downloads the file to local folder of the server
     # file_upload_path is the fullUrl of where the
