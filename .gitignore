@@ -136,3 +136,4 @@ test_report.html
 integration_test_report.html
 /.vscode
 test_results
+.idea
