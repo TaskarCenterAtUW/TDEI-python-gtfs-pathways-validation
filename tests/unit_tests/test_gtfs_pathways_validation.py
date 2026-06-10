@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import unittest
@@ -587,6 +588,31 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
+    def test_parse_validation_errors_reads_validator_json_text(self):
+        # Arrange
+        errors = '[{"code": "INVALID_FIELD", "sampleNotices": []}]'
+
+        # Act
+        validation_errors = GTFSPathwaysValidation.parse_validation_errors(errors)
+
+        # Assert
+        self.assertEqual(validation_errors, [{'code': 'INVALID_FIELD', 'sampleNotices': []}])
+
+    def test_format_validation_errors_serializes_errors_as_json_text(self):
+        # Arrange
+        errors = [{'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field'}]}]
+
+        # Act
+        validation_message = GTFSPathwaysValidation.format_validation_errors(errors)
+
+        # Assert
+        self.assertEqual(
+            json.loads(validation_message),
+            [{'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field'}]}]
+        )
+        self.assertNotIn("'", validation_message)
+        self.assertFalse(validation_message.startswith('"'))
+
     @patch('src.gtfs_pathways_validation.CanonicalValidator')
     def test_is_pathways_valid_with_errors(self, mock_canonical_validator):
         # Arrange
@@ -606,6 +632,53 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
         self.assertIn('INVALID_FIELD', validation_message)
+        self.assertEqual(json.loads(validation_message), mock_result.error)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_with_json_string_errors(self, mock_canonical_validator):
+        # Arrange
+        validation_errors = [
+            {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
+        ]
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = json.dumps(validation_errors)
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+        self.assertFalse(validation_message.startswith('"'))
+        self.assertEqual(json.loads(validation_message), validation_errors)
+
+    @patch('src.gtfs_pathways_validation.CanonicalValidator')
+    def test_is_pathways_valid_with_json_string_info(self, mock_canonical_validator):
+        # Arrange
+        validation_errors = [
+            {'code': 'block_trips_with_overlapping_stop_times',
+             'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
+        ]
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = json.dumps(validation_errors)
+        mock_result.info = '[]'
+        mock_canonical_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertTrue(is_valid)
+        self.assertEqual(validation_message, '[]')
+        self.assertEqual(mock_result.info, validation_errors)
 
     @patch('src.gtfs_pathways_validation.CanonicalValidator')
     def test_is_pathways_valid_to_convert_error_to_warning(self, mock_canonical_validator):
