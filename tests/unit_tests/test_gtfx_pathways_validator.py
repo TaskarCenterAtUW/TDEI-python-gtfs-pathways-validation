@@ -67,7 +67,9 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         # Assert
 
         self.validator.send_status.assert_called_once_with(valid=True, upload_message=mock_request_message,
-                                                           validation_message='Validation successful')
+                                                           validation_message='Validation successful',
+                                                           report=mock_pathways_validation_instance.report,
+                                                           report_url=mock_pathways_validation_instance.report_url)
 
     def test_process_message_with_no_file_path(self):
         # Arrange
@@ -122,6 +124,36 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         # Assert
         mock_queue_message.data_from.assert_called_once()
         mock_response_topic.publish.assert_called_once_with(data=mock_data)
+
+    @patch('src.gtfx_pathways_validator.QueueMessage')
+    def test_send_status_includes_the_report(self, mock_queue_message):
+        # Arrange
+        mock_report = MagicMock(summary={'valid': True}, validator_version='8.0.1')
+
+        # Act
+        self.validator.send_status(
+            valid=True,
+            upload_message=MagicMock(),
+            validation_message='',
+            report=mock_report,
+            report_url='https://reports/feed-report.zip'
+        )
+
+        # Assert
+        data = mock_queue_message.data_from.call_args[0][0]['data']
+        self.assertEqual(data['report_url'], 'https://reports/feed-report.zip')
+        self.assertEqual(data['report_summary'], {'valid': True})
+        self.assertEqual(data['package']['gtfs-validator'], '8.0.1')
+
+    @patch('src.gtfx_pathways_validator.QueueMessage')
+    def test_send_status_without_a_report(self, mock_queue_message):
+        # Act
+        self.validator.send_status(valid=False, upload_message=MagicMock(), validation_message='Error')
+
+        # Assert
+        data = mock_queue_message.data_from.call_args[0][0]['data']
+        self.assertIsNone(data['report_url'])
+        self.assertIsNone(data['report_summary'])
 
     @patch('src.gtfx_pathways_validator.threading.Thread')
     def test_stop_listening(self, mock_thread):

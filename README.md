@@ -2,7 +2,6 @@
 
 [![Unit Tests](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml/badge.svg?cacheSeconds=60)](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml)
 ![Coverage](https://raw.githubusercontent.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/badges/coverage.svg?cacheSeconds=60)
-[![gtfs-canonical-validator](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Egtfs-canonical-validator%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=gtfs-canonical-validator&color=blue&cacheSeconds=60)](https://pypi.org/project/gtfs-canonical-validator/)
 [![python-ms-core](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Epython-ms-core%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=python-ms-core&color=blue&cacheSeconds=60)](https://pypi.org/project/python-ms-core/)
 
 ## Introduction 
@@ -11,8 +10,11 @@ Service to Validate the GTFS pathways file that is uploaded. At the moment, the 
 - Consumes the message and perform following checks - 
   - Download the file locally 
   - File location is in the message `data.meta.file_upload_path`, reference see this file [msg-gtfs-pathways-upload.json](./src/assets/msg-gtfs-pathways-upload.json)
-  - Uses `tdei-gtfs-csv-validator` to validate the file
-  - Added the `isValid` and `validationMessage` keys to the original message 
+  - Runs [MobilityData's GTFS validator](https://github.com/MobilityData/gtfs-validator) on the file, locally
+  - Runs TDEI's own pathways checks ([src/custom_checks.py](./src/custom_checks.py)) on the same file
+  - Decides whether the file passes using the rules in [src/pathways_config.py](./src/pathways_config.py), which apply to both
+  - Uploads a report of every problem found (`report.json` and `report.html`, zipped with MobilityData's own reports) next to the uploaded file
+  - Adds `success`, `message`, `report_url` and `report_summary` to the response message
 - Publishes the result to the topic mentioned in `.env` file, example `VALIDATION_TOPIC=gtfs-pathways-validation`
 
 ## Getting Started
@@ -22,6 +24,13 @@ The project is built on Python with FastAPI framework. All the regular nuances f
 | Software   | Version |
 |------------|---------|
 | Python     | 3.10.x  |
+| Java       | 17 or later (for MobilityData's GTFS validator) |
+
+MobilityData's validator is a Java program. Download the pinned version (to `lib/`, which is ignored by git) with:
+```
+scripts/download-gtfs-validator.sh lib
+```
+The Docker image does this itself. To change the version, set `GTFS_VALIDATOR_VERSION` and add its checksum to the script.
 
 
 ### Connectivity to cloud
@@ -36,7 +45,15 @@ STORAGECONNECTION=xxxx
 MAX_CONCURRENT_MESSAGES=xxx
 ```
 
-The application connect with the `STORAGECONNECTION` string provided in `.env` file and validates downloaded zipfile using `tdei-gtfs-csv-validator` package.
+Optional settings for MobilityData's validator:
+```bash
+GTFS_VALIDATOR_JAR=lib/gtfs-validator-cli.jar  # where the validator is
+GTFS_VALIDATOR_COUNTRY_CODE=us                 # for country-specific rules, e.g. phone numbers
+GTFS_VALIDATOR_TIMEOUT=900                     # seconds
+JAVA_PATH=java
+```
+
+The application connect with the `STORAGECONNECTION` string provided in `.env` file to download the uploaded file and upload its validation report.
 `QUEUECONNECTION` is not being used in this application but this is the main requirement for `python-ms-core` package
 
 `MAX_CONCURRENT_MESSAGES` - Maximum number of concurrent messages that the app can process. Defaults to 2
@@ -141,11 +158,32 @@ graph LR;
       "user_id": "c59d29b6-a063-4249-943f-d320d15ac9ab",
       "tdei_project_group_id": "0b41ebc5-350c-42d3-90af-3af4ad3628fb",
       "success": true,
-      "message": ""
+      "message": "",
+      "report_url": "https://tdeisamplestorage.blob.core.windows.net/osw/test_upload/valid-validation-report-1a2b3c4d.zip",
+      "report_summary": {
+        "valid": true,
+        "feed": "valid.zip",
+        "validatedAt": "2026-10-22T21:40:00+00:00",
+        "gtfsValidatorVersion": "8.0.1",
+        "codesByOutcome": {"fails_upload": 0, "downgraded_to_warning": 1, "warning": 3, "info": 2}
+      }
     }
   }
 
 ```
+
+`message` lists the errors that failed the upload, as JSON. `report_url` is `null` if the report couldn't be uploaded;
+the result doesn't depend on it.
+
+### Validation report
+
+The report zip holds:
+- `report.json`: `summary` (as in `report_summary`) and `notices`, every problem found, worst first. Each notice is in
+  MobilityData's format (`code`, `severity`, `totalNotices`, `sampleNotices`), plus `source` (`mobilitydata` or `tdei`)
+  and `outcome`: `fails_upload`, `downgraded_to_warning` (an error [pathways_config.py](./src/pathways_config.py)
+  accepts), `warning` or `info`.
+- `report.html`: the same, to read in a browser.
+- `mobilitydata/`: MobilityData's own `report.json`, `report.html` and `system_errors.json`.
 
 ## Testing Locally
 - To test the local files for validation, use [tease.py](./tease.py) 

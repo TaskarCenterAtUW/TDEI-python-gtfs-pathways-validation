@@ -613,15 +613,15 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertNotIn("'", validation_message)
         self.assertFalse(validation_message.startswith('"'))
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_with_errors(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_errors(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
         mock_result.error = [
             {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
         ]
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -634,8 +634,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertIn('INVALID_FIELD', validation_message)
         self.assertEqual(json.loads(validation_message), mock_result.error)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_with_json_string_errors(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_json_string_errors(self, mock_mobility_data_validator):
         # Arrange
         validation_errors = [
             {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
@@ -643,7 +643,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.status = False
         mock_result.error = json.dumps(validation_errors)
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -656,8 +656,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertFalse(validation_message.startswith('"'))
         self.assertEqual(json.loads(validation_message), validation_errors)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_with_json_string_info(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_json_string_info(self, mock_mobility_data_validator):
         # Arrange
         validation_errors = [
             {'code': 'block_trips_with_overlapping_stop_times',
@@ -667,7 +667,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         mock_result.status = False
         mock_result.error = json.dumps(validation_errors)
         mock_result.info = '[]'
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -680,8 +680,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertEqual(validation_message, '[]')
         self.assertEqual(mock_result.info, validation_errors)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_to_convert_error_to_warning(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_to_convert_error_to_warning(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
@@ -690,7 +690,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
              'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
         ]
         mock_result.info = None
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -701,8 +701,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertTrue(is_valid)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_for_fatal_errors(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_for_fatal_errors(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
@@ -711,7 +711,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
              'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'filename': 'trips.txt'}]}
         ]
         mock_result.info = None
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -722,8 +722,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_with_other(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_other(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
@@ -732,7 +732,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
              'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'filename': 'trips.txt'}]}
         ]
         mock_result.info = None
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -743,8 +743,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_with_invalid_pathways_file(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_invalid_pathways_file(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
@@ -753,7 +753,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
              'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'filename': 'pathways.txt'}]}
         ]
         mock_result.info = None
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
@@ -764,8 +764,8 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.CanonicalValidator')
-    def test_is_pathways_valid_with_child_reference(self, mock_canonical_validator):
+    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_child_reference(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
@@ -774,7 +774,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
              'sampleNotices': [{'fieldName': 'wheelchair_accessible', 'childFilename': 'pathways.txt'}]}
         ]
         mock_result.info = None
-        mock_canonical_validator.return_value.validate.return_value = mock_result
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
         expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
