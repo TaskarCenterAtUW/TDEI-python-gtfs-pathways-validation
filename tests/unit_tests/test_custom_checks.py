@@ -90,9 +90,9 @@ class TestStandardStation(StationTestCase):
     def test_passes_every_check(self):
         self.assertEqual(self.notices(), {})
 
-    def test_has_33_checks(self):
-        self.assertEqual(len(CHECKS), 33)
-        self.assertEqual(len({code for code, _, _ in CHECKS}), 33)
+    def test_has_32_checks(self):
+        self.assertEqual(len(CHECKS), 32)
+        self.assertEqual(len({code for code, _, _ in CHECKS}), 32)
 
     def test_rules_doc_lists_every_check_with_its_severity(self):
         path = os.path.join(os.path.dirname(__file__), '..', '..', 'docs', 'validation-rules.md')
@@ -106,26 +106,27 @@ class TestStandardStation(StationTestCase):
         self.assertEqual(documented, {code: severity for code, severity, _ in CHECKS})
 
     def test_samples_point_at_the_row(self):
-        self.edit('pathways', 'esc_down', is_bidirectional=1)
+        self.edit('pathways', 'ramp_top', max_slope='')
 
-        notice = self.notices()['tdei_escalator_two_way']
+        notice = self.notices()['tdei_walkway_changes_level']
 
         self.assertEqual(notice['severity'], 'WARNING')
         self.assertEqual(notice['source'], 'tdei')
-        self.assertEqual(notice['sampleNotices'], [{'filename': 'pathways.txt', 'csvRowNumber': 6,
-                                                    'pathwayId': 'esc_down', 'fromStopId': 'C', 'toStopId': 'P1',
-                                                    'defectId': 'tdei_escalator_two_way:esc_down'}])
+        self.assertEqual(notice['sampleNotices'], [{'filename': 'pathways.txt', 'csvRowNumber': 3,
+                                                    'pathwayId': 'ramp_top', 'fromStopId': 'NT', 'toStopId': 'C',
+                                                    'fromLevelId': 'L0', 'toLevelId': 'Lm1',
+                                                    'defectId': 'tdei_walkway_changes_level:ramp_top'}])
 
     def test_skips_a_check_that_crashes(self):
         def crash(model):
             raise ValueError('bug')
-        self.edit('pathways', 'esc_down', is_bidirectional=1)
+        self.edit('pathways', 'ramp_top', max_slope='')
 
         with patch.object(custom_checks, 'CHECKS', [('tdei_crash', ERROR, crash)] + CHECKS), \
                 self.assertLogs('TDEI_CHECKS', level='ERROR'):
             codes = list(self.notices())
 
-        self.assertEqual(codes, ['tdei_escalator_two_way'])
+        self.assertEqual(codes, ['tdei_walkway_changes_level'])
 
 
 class TestPathwayChecks(StationTestCase):
@@ -150,10 +151,11 @@ class TestPathwayChecks(StationTestCase):
         self.assertEqual(self.flagged('tdei_stairs_same_level'), ['stairs_unknown'])  # no stair_count: can't tell
         self.assertEqual(self.flagged('tdei_stairs_short_within_level'), ['steps'])  # reported, as INFO
 
-    def test_escalator_two_way(self):
+    def test_two_way_escalators_are_fine(self):
+        # Many are reversible (one way at some times, the other way at others), which GTFS allows.
         self.edit('pathways', 'esc_down', is_bidirectional=1)
 
-        self.assertEqual(self.flagged('tdei_escalator_two_way'), ['esc_down'])
+        self.assertEqual(self.notices(), {})
 
     def test_walkway_changes_level(self):
         self.edit('pathways', 'ramp_top', max_slope='')
