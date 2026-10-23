@@ -101,8 +101,9 @@ class MobilityDataValidator:
         system_errors = self._system_errors()
         for notice in system_errors:
             logger.warning(f' GTFS validator system error: {notice.get("code")}')
-        load_errors = [notice for notice in system_errors if notice.get('severity') == 'ERROR'] \
-            if completed.returncode != 0 else []
+        # Marked so they fail the upload: a feed that can't be read can't have its pathways checked
+        load_errors = [{**notice, 'feedUnreadable': True} for notice in system_errors
+                       if notice.get('severity') == 'ERROR'] if completed.returncode != 0 else []
 
         return MobilityDataResult(report, self.output_dir, load_errors)
 

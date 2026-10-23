@@ -97,7 +97,7 @@ class TestMobilityDataValidator(unittest.TestCase):
         result = self.validator.validate()
 
         self.assertFalse(result.status)
-        self.assertEqual(result.error, [load_error])
+        self.assertEqual(result.error, [{**load_error, 'feedUnreadable': True}])
 
     @patch('src.mobility_data_validator.subprocess.run')
     def test_only_logs_system_errors_after_a_normal_run(self, mock_run):

@@ -13,7 +13,8 @@ Service to Validate the GTFS pathways file that is uploaded. At the moment, the 
   - Runs [MobilityData's GTFS validator](https://github.com/MobilityData/gtfs-validator) on the file, locally
   - Runs TDEI's own pathways checks ([src/custom_checks.py](./src/custom_checks.py)) on the same file
   - Decides whether the file passes using the rules in [src/pathways_config.py](./src/pathways_config.py), which apply to both
-  - Uploads a report of every problem found (`report.json` and `report.html`, zipped with MobilityData's own reports) next to the uploaded file
+  - Measures how complete and step-free the feed's stations are ([src/pathways_metrics.py](./src/pathways_metrics.py))
+  - Uploads a report of every problem found and the metrics (`report.json` and `report.html`, zipped with MobilityData's own reports) next to the uploaded file
   - Adds `success`, `message`, `report_url` and `report_summary` to the response message
 - Publishes the result to the topic mentioned in `.env` file, example `VALIDATION_TOPIC=gtfs-pathways-validation`
 
@@ -165,12 +166,33 @@ graph LR;
         "feed": "valid.zip",
         "validatedAt": "2026-10-22T21:40:00+00:00",
         "gtfsValidatorVersion": "8.0.1",
-        "codesByOutcome": {"fails_upload": 0, "downgraded_to_warning": 1, "warning": 3, "info": 2}
+        "codesByOutcome": {"fails_upload": 0, "downgraded_to_warning": 1, "warning": 3, "info": 2},
+        "metrics": {
+          "completeness": {
+            "stationsWithPathways": {"count": 4, "total": 5, "percent": 80.0},
+            "stopsWithLevelId": {"count": 120, "total": 120, "percent": 100.0},
+            "stopsWithWheelchairBoarding": {"count": 30, "total": 42, "percent": 71.4},
+            "pathwaysWithLength": {"count": 150, "total": 180, "percent": 83.3},
+            "pathwaysWithTraversalTime": {"count": 20, "total": 180, "percent": 11.1}
+          },
+          "connectivity": {
+            "platformsStepFree": {"count": 11, "total": 12, "percent": 91.7},
+            "entrancesReachingPlatformStepFree": {"count": 9, "total": 14, "percent": 64.3},
+            "stationsStepFree": {"count": 3, "total": 4, "percent": 75.0}
+          }
+        }
       }
     }
   }
 
 ```
+
+Every error fails an upload, from MobilityData's validator or TDEI's own checks, except those
+[pathways_config.py](./src/pathways_config.py) downgrades to warnings. A feed that can't be read always fails.
+
+`report_summary.metrics` measures the feed's stations; it's `null` if they couldn't be measured. Except for
+`stationsWithPathways`, the metrics count within stations that have pathways. "Step-free" means using only
+walkways, elevators, fare gates and exit gates, following pathway direction.
 
 `message` lists the errors that failed the upload, as JSON. `report_url` is `null` if the report couldn't be uploaded;
 the result doesn't depend on it.
@@ -181,9 +203,7 @@ The report zip holds:
 - `report.json`: `summary` (as in `report_summary`) and `notices`, every problem found, worst first. Each notice is in
   MobilityData's format (`code`, `severity`, `totalNotices`, `sampleNotices`), plus `source` (`mobilitydata` or `tdei`)
   and `outcome`: `fails_upload`, `downgraded_to_warning` (an error [pathways_config.py](./src/pathways_config.py)
-  accepts), `warning` or `info`.
-- `report.html`: the same, to read in a browser.
+  accepts), `warning` or `info`. Notices keep up to 1,000 samples each, as MobilityData's do. TDEI's samples also
+  have a `defectId` that stays the same while the problem does, e.g. `tdei_stairs_same_level:p1`.
+- `report.html`: the same, to read in a browser, with the metrics.
 - `mobilitydata/`: MobilityData's own `report.json`, `report.html` and `system_errors.json`.
-
-## Testing Locally
-- To test the local files for validation, use [tease.py](./tease.py) 

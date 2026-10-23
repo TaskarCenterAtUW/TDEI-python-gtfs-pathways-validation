@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from src.custom_checks import make_notice, MAX_SAMPLE_NOTICES
 from src.gtfs_feed import GtfsFeed
-from src.gtfs_pathways_validation import GTFSPathwaysValidation
+from src.pathways_feed_validation import PathwaysFeedValidation
 from src.mobility_data_validator import MobilityDataResult
 from src.validation_report import (ValidationReport, notice_outcome, FAILS_UPLOAD, DOWNGRADED, WARNING, INFO)
 
@@ -23,10 +23,15 @@ def notice(code, severity, **sample):
 class TestNoticeOutcome(unittest.TestCase):
 
     def test_errors_fail_the_upload_unless_downgraded(self):
-        self.assertEqual(notice_outcome(notice('foreign_key_violation', 'ERROR')), FAILS_UPLOAD)
-        self.assertEqual(notice_outcome(notice('invalid_url', 'ERROR')), DOWNGRADED)
+        self.assertEqual(notice_outcome(notice('foreign_key_violation', 'ERROR', childFilename='trips.txt')),
+                         FAILS_UPLOAD)
+        self.assertEqual(notice_outcome({**notice('tdei_example', 'ERROR'), 'source': 'tdei'}), FAILS_UPLOAD)
+        self.assertEqual(notice_outcome(notice('invalid_url', 'ERROR', filename='pathways.txt')), DOWNGRADED)
         self.assertEqual(notice_outcome(notice('expired_calendar', 'WARNING')), WARNING)
         self.assertEqual(notice_outcome(notice('unknown_file', 'INFO')), INFO)
+
+    def test_unreadable_feeds_fail_the_upload_even_with_a_downgraded_code(self):
+        self.assertEqual(notice_outcome({**notice('u_r_i_syntax_error', 'ERROR'), 'feedUnreadable': True}), FAILS_UPLOAD)
 
 
 class TestValidationReport(unittest.TestCase):
@@ -55,7 +60,19 @@ class TestValidationReport(unittest.TestCase):
         self.assertFalse(summary['valid'])
         self.assertEqual(summary['feed'], 'feed.zip')
         self.assertEqual(summary['gtfsValidatorVersion'], '8.0.1')
-        self.assertEqual(summary['codesByOutcome'], {FAILS_UPLOAD: 1, DOWNGRADED: 0, WARNING: 1, INFO: 1})
+        self.assertEqual(summary['codesByOutcome'],
+                         {FAILS_UPLOAD: 1, DOWNGRADED: 0, WARNING: 1, INFO: 1})
+
+    def test_includes_metrics_in_the_summary_and_html(self):
+        metrics = {'completeness': {'pathwaysWithLength': {'count': 6, 'total': 9, 'percent': 66.7}},
+                   'connectivity': {}}
+        report = ValidationReport(feed_name='feed.zip', is_valid=True, mobility_data_notices=[],
+                                  custom_notices=[], metrics=metrics)
+
+        self.assertEqual(report.summary['metrics'], metrics)
+        self.assertIn('<td>Pathways with a length</td><td>6 of 9</td><td>66.7%</td>', report.to_html())
+        self.assertIsNone(self.report.summary['metrics'])
+        self.assertNotIn('Metrics', self.report.to_html())
 
     def test_renders_html_with_escaped_values(self):
         page = self.report.to_html()
@@ -131,8 +148,8 @@ class TestValidationWithCustomChecksAndReport(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
         self.feed = shutil.copy(os.path.join(TEST_FILES, 'pathways-good.zip'), self.dir)
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation()
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation()
         self.validator.file_path = 'https://account.blob.core.windows.net/gtfspathways/2026/10/feed.zip'
         self.validator.file_relative_path = 'feed.zip'
         self.validator.container_name = 'gtfspathways'
@@ -142,14 +159,14 @@ class TestValidationWithCustomChecksAndReport(unittest.TestCase):
         self.validator.report = None
         self.validator.report_url = None
 
-        patcher = patch('src.gtfs_pathways_validation.MobilityDataValidator')
+        patcher = patch('src.pathways_feed_validation.MobilityDataValidator')
         self.mock_mobility_data = patcher.start()
         self.addCleanup(patcher.stop)
         self.mobility_data_notices = [notice('unknown_file', 'INFO')]
         self.mock_mobility_data.return_value.validate.side_effect = lambda: MobilityDataResult(
             {'notices': self.mobility_data_notices}, os.path.join(self.dir, 'mobilitydata'))
 
-        clean_up = patch.object(GTFSPathwaysValidation, 'clean_up')
+        clean_up = patch.object(PathwaysFeedValidation, 'clean_up')
         clean_up.start()
         self.addCleanup(clean_up.stop)
 
@@ -157,7 +174,7 @@ class TestValidationWithCustomChecksAndReport(unittest.TestCase):
         shutil.rmtree(self.dir, ignore_errors=True)
 
     def validate_with(self, custom_notices):
-        with patch('src.gtfs_pathways_validation.run_custom_checks', return_value=custom_notices):
+        with patch('src.pathways_feed_validation.run_custom_checks', return_value=custom_notices):
             return self.validator.validate()
 
     def test_passes_with_only_custom_warnings(self):
@@ -175,18 +192,42 @@ class TestValidationWithCustomChecksAndReport(unittest.TestCase):
         self.assertFalse(self.validator.report.summary['valid'])
 
     def test_fails_with_mobility_data_and_custom_errors(self):
-        self.mobility_data_notices = [notice('foreign_key_violation', 'ERROR')]
+        self.mobility_data_notices = [notice('foreign_key_violation', 'ERROR', childFilename='pathways.txt')]
 
         is_valid, message = self.validate_with([notice('tdei_example', 'ERROR')])
 
         self.assertFalse(is_valid)
         self.assertEqual([n['code'] for n in json.loads(message)], ['foreign_key_violation', 'tdei_example'])
 
+    def test_fails_with_any_mobility_data_error(self):
+        self.mobility_data_notices = [notice('foreign_key_violation', 'ERROR', childFilename='trips.txt')]
+
+        is_valid, message = self.validate_with([])
+
+        self.assertFalse(is_valid)
+        self.assertEqual([n['code'] for n in json.loads(message)], ['foreign_key_violation'])
+        self.assertEqual(self.validator.report.summary['codesByOutcome'][FAILS_UPLOAD], 1)
+
+    def test_reports_the_feeds_metrics(self):
+        self.validate_with([])
+
+        metrics = self.validator.report.summary['metrics']
+        self.assertGreater(metrics['completeness']['stationsWithPathways']['count'], 0)
+        self.assertIn('platformsStepFree', metrics['connectivity'])
+
     def test_ignores_custom_checks_that_crash(self):
-        with patch('src.gtfs_pathways_validation.run_custom_checks', side_effect=ValueError('bug')):
+        with patch('src.pathways_feed_validation.run_custom_checks', side_effect=ValueError('bug')):
             is_valid, _ = self.validator.validate()
 
         self.assertTrue(is_valid)
+        self.assertIsNotNone(self.validator.report.summary['metrics'])
+
+    def test_ignores_metrics_that_crash(self):
+        with patch('src.pathways_feed_validation.measure_feed', side_effect=ValueError('bug')):
+            is_valid, _ = self.validate_with([])
+
+        self.assertTrue(is_valid)
+        self.assertIsNone(self.validator.report.summary['metrics'])
 
     def test_uploads_the_report_next_to_the_feed(self):
         self.validate_with([])

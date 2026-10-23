@@ -137,3 +137,5 @@ integration_test_report.html
 /.vscode
 test_results
 .idea
+# Local GTFS feeds
+/*.zip

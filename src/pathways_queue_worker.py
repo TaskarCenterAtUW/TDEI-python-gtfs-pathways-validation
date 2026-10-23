@@ -3,7 +3,7 @@ import urllib.parse
 from python_ms_core import Core
 from python_ms_core.core.queue.models.queue_message import QueueMessage
 from .config import Settings
-from .gtfs_pathways_validation import GTFSPathwaysValidation
+from .pathways_feed_validation import PathwaysFeedValidation
 from .models.file_upload_msg import FileUploadMsg
 import threading
 from typing import Optional
@@ -14,7 +14,7 @@ logger = logging.getLogger('PATHWAYS_VALIDATOR')
 logger.setLevel(logging.INFO)
 
 
-class GTFSPathwaysValidator:
+class PathwaysQueueWorker:
     _settings = Settings()
 
     def __init__(self):
@@ -48,7 +48,7 @@ class GTFSPathwaysValidator:
             logger.info(file_upload_path)
             if file_upload_path:
                 # Do the validation in the other class
-                validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
+                validator = PathwaysFeedValidation(file_path=file_upload_path, storage_client=self.storage_client)
                 validation = validator.validate()
                 self.send_status(valid=validation[0], upload_message=upload_msg,
                                     validation_message=validation[1], report=validator.report,

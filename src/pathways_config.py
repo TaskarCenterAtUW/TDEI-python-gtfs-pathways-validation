@@ -34,24 +34,3 @@ CHANGE_ERROR_TO_WARNING = [
     'timeframe_start_or_end_time_greater_than_twenty_four_hours',
     'u_r_i_syntax_error'
 ]
-
-# errors from the validator that related to pathways
-PATHWAYS_FATAL_ERROR_CODES = [
-    'bidirectional_exit_gate',
-    'pathway_dangling_generic_node',
-    'pathway_loop',
-    'pathway_to_platform_with_boarding_areas',
-    'pathway_to_wrong_location_type',
-    'pathway_unreachable_location',
-    'missing_level_id',
-    'location_without_parent_station'
-]
-
-# fields in GTFS by file that are related to pathways
-PATHWAYS_FIELDS = {
-    'trips.txt': ['wheelchair_accessible'],
-    'stops.txt': ['wheelchair_boarding', 'tts_stop_name']
-}
-
-# files related to pathways    
-PATHWAYS_FILES = ['pathways.txt', 'levels.txt']

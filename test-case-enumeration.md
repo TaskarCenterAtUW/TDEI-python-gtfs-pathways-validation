@@ -71,20 +71,57 @@ if __name__ == '__main__':
 |--|--|--|--|--|--|
 | Serializer | TestResponse | Functional| When requested with response parameter| Expect to return either True or False |:white_check_mark:|
 |--|--|--|--|--|--|
-| Validation | TestSuccessGTFSPathwaysValidation | Functional| When requested for clean_up_file function| Expect to return remove files from local storage |:white_check_mark:|
-| Validation | TestSuccessGTFSPathwaysValidation | Functional| When requested for clean_up_folder function| Expect to return remove directory from local storage |:white_check_mark:|
-| Validation | TestSuccessGTFSPathwaysValidation | Functional| When requested for download_single_file function| Expect to download file in local storage |:white_check_mark:|
-| Validation | TestSuccessGTFSPathwaysValidation | Functional| When requested for is_gtfs_pathways_valid function| Expect to return True |:white_check_mark:|
-| Validation | TestSuccessGTFSPathwaysValidation | Functional| When requested for validate function| Expect to return True |:white_check_mark:|
+| Validation | TestSuccessPathwaysFeedValidation | Functional | When requested for validate function with the good (Baltimore Metro) feed | Expect to return False, failing only on tdei_level_change_same_level |:white_check_mark:|
+| Validation | TestSuccessPathwaysFeedValidation | Functional | When requested for download_single_file function | Expect to download the file to local storage |:white_check_mark:|
+| Validation | TestSuccessPathwaysFeedValidation | Functional | When requested for clean_up function with a file | Expect to remove the file |:white_check_mark:|
+| Validation | TestSuccessPathwaysFeedValidation | Functional | When requested for clean_up function with a folder | Expect to remove the folder |:white_check_mark:|
+| Validation | TestSuccessPathwaysFeedValidation | Functional | When requested for clean_up function with a path outside the downloads folder | Expect to leave it in place |:white_check_mark:|
 |--|--|--|--|--|--|
-| Validation | TestFailureGTFSPathwaysValidation | Functional| When requested for download_single_file function with invalid endpoint| Expect to throw exception |:white_check_mark:|
-| Validation | TestFailureGTFSPathwaysValidation | Functional| When requested for is_gtfs_pathways_valid function with invalid file format| Expect to return False |:white_check_mark:|
-| Validation | TestFailureGTFSPathwaysValidation | Functional| When requested for is_gtfs_pathways_valid function with invalid zip file| Expect to return False |:white_check_mark:|
-| Validation | TestFailureGTFSPathwaysValidation | Functional| When requested for validate function with invalid file| Expect to return False |:white_check_mark:|
+| Validation | TestFailurePathwaysFeedValidation | Functional | When requested for validate function with a feed missing required files | Expect to return False |:white_check_mark:|
+| Validation | TestFailurePathwaysFeedValidation | Functional | When requested for validate function with a file that isn't a zip | Expect to return False |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When the storage client fails or the file isn't found | Expect download_single_file to raise FeedDownloadError |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When the file isn't a .zip | Expect to return False without downloading |:white_check_mark:|
 |--|--|--|--|--|--|
-| Validator | TestGTFSPathwaysValidator | Functional| When calling send_status function with invalid parameters| Expect to return invalid parameters |:white_check_mark:|
-| Validator | TestGTFSPathwaysValidator | Functional| When calling subscribe function | Expect to return a message |:white_check_mark:|
-| Validator | TestGTFSPathwaysValidator | Functional| When calling send_status function with invalid parameters | Expect to return a valid message |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When a pathways error is found (pathways file or field, child file, or pathways error code) | Expect to return False, with the errors as JSON |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When the only errors are outside pathways | Expect to return True, with no message |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When there are errors both in and outside pathways | Expect the message to list only the pathways errors |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When a required file is missing | Expect to return False |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When every error is one pathways_config.py downgrades | Expect to return True |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When MobilityData's validator crashes | Expect the download folder to be removed |:white_check_mark:|
+| Validation | TestGoodFile2 | Functional | When validating a good feed without pathways with the real validator | Expect to return True |:white_check_mark:|
+| Validation | TestExplicitErrorCase, TestFieldNameError, TestFileNameError, TestForeignKey | Functional | When validating a feed with a pathways error with the real validator | Expect to return False |:white_check_mark:|
+|--|--|--|--|--|--|
+| Report | TestNoticeOutcome | Functional | When judging an ERROR notice | Expect fails_upload only for pathways errors, unreadable feeds and missing files; error_not_pathways or downgraded_to_warning otherwise |:white_check_mark:|
+| Report | TestValidationReport | Functional | When building a report | Expect every notice with its source and outcome, worst first, and a summary with counts by outcome |:white_check_mark:|
+| Report | TestValidationReport | Functional | When rendering and zipping the report | Expect escaped HTML, and a zip with report.json, report.html and MobilityData's own reports |:white_check_mark:|
+| Report | TestMakeNotice | Functional | When a TDEI check finds problems | Expect a notice in MobilityData's format with a few samples and the total; none when nothing was found |:white_check_mark:|
+| Report | TestGtfsFeed | Functional | When reading a feed | Expect stops, pathways and levels with row numbers, including from a folder in the zip or with a byte order mark |:white_check_mark:|
+| Report | TestValidationWithCustomChecksAndReport | Functional | When TDEI's checks report warnings or errors | Expect warnings to pass and errors to fail the upload |:white_check_mark:|
+| Report | TestValidationWithCustomChecksAndReport | Functional | When TDEI's checks crash | Expect validation to carry on without them |:white_check_mark:|
+| Report | TestValidationWithCustomChecksAndReport | Functional | When uploading the report | Expect it next to the feed with its own name, and validation to carry on if the upload fails |:white_check_mark:|
+|--|--|--|--|--|--|
+| MobilityData | TestMobilityDataResult | Functional | When reading a validator report | Expect ERROR notices as errors, and status True when there are none |:white_check_mark:|
+| MobilityData | TestMobilityDataValidator | Functional | When the validator jar is missing, can't run or writes no report | Expect MobilityDataValidatorError |:white_check_mark:|
+| MobilityData | TestMobilityDataValidator | Functional | When the validator can't load the feed | Expect its system errors as feed errors, marked feedUnreadable |:white_check_mark:|
+| MobilityData | TestMobilityDataValidator | Functional | When a validator rule crashes on a feed it loaded | Expect the system error to be logged only |:white_check_mark:|
+| MobilityData | TestMobilityDataValidatorJar | Functional | When running the real validator jar | Expect a feed's errors, each run in its own folder, and i_o_error for a file that isn't a zip |:white_check_mark:|
+|--|--|--|--|--|--|
+| TDEI checks | TestStandardStation | Functional | When checking the standard test station (entrance, concourse, two platforms, ramp, stairs, elevators, one-way escalator) | Expect no notices |:white_check_mark:|
+| TDEI checks | TestStandardStation | Functional | When a check crashes | Expect it to be logged and skipped, and the other checks to run |:white_check_mark:|
+| TDEI checks | TestPathwayChecks | Functional | When a pathway is wrong: an escalator, elevator or stairs on one level, two-way escalator, walkway changing level without a slope, stair_count the wrong way, length or speed far off, or a duplicate | Expect that pathway flagged, and close cases (same-height levels, stair_count 0, short lengths, side-by-side routes) not flagged |:white_check_mark:|
+| TDEI checks | TestLevelChecks | Functional | When a level is wrong: a boarding area off its platform's level, an unreachable or unused level, a repeated or far-off level_index, a stop far from its level, or a missing level_id | Expect that level or stop flagged |:white_check_mark:|
+| TDEI checks | TestStationChecks | Functional | When a station with pathways has no entrance, or a stop no pathway touches | Expect the station or stop flagged |:white_check_mark:|
+| TDEI checks | TestRouteChecks | Functional | When an entrance reaches no platform, or no platform step-free; a platform has no step-free way in or out, or only by elevator; or two platforms have no step-free transfer | Expect that entrance or platform flagged, and platforms joined only through entrances skipped |:white_check_mark:|
+| TDEI checks | TestEntranceChecks | Functional | When an entrance has no coordinates, or isn't at street level | Expect the entrance flagged |:white_check_mark:|
+| TDEI checks | TestMetrics | Functional | When measuring the standard station, or it without step-free routes | Expect completeness and connectivity counts and percentages |:white_check_mark:|
+| TDEI checks | TestMetrics | Functional | When measuring a feed without pathways | Expect percentages of None where nothing is counted |:white_check_mark:|
+| Report | TestValidationReport, TestValidationWithCustomChecksAndReport | Functional | When the feed is measured, or measuring crashes | Expect metrics in the summary and HTML, or null without blocking the upload |:white_check_mark:|
+|--|--|--|--|--|--|
+| Queue worker | TestPathwaysQueueWorker | Functional | When a message arrives | Expect it to be read and processed |:white_check_mark:|
+| Queue worker | TestPathwaysQueueWorker | Functional | When processing a message with a file path | Expect the feed validated and the result published |:white_check_mark:|
+| Queue worker | TestPathwaysQueueWorker | Functional | When processing a message with no file path, or validation raises | Expect a failure published with the reason |:white_check_mark:|
+| Queue worker | TestPathwaysQueueWorker | Functional | When publishing the result | Expect the report URL and summary when there is a report, and nulls when there isn't |:white_check_mark:|
+| Queue worker | TestPathwaysQueueWorker | Functional | When stopping | Expect the listening thread to be joined |:white_check_mark:|
 |--|--|--|--|--|--|
 | Server | TestApp | Functional | When calling get_settings function | Expect to return env variables |:white_check_mark:|
 | Server | TestApp | Functional | When calling ping function | Expect to return 200 |:white_check_mark:|

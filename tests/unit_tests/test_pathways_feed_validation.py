@@ -4,7 +4,7 @@ import shutil
 import unittest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from src.gtfs_pathways_validation import GTFSPathwaysValidation
+from src.pathways_feed_validation import PathwaysFeedValidation, FeedDownloadError
 
 DOWNLOAD_FILE_PATH = f'{Path.cwd()}/downloads'
 SAVED_FILE_PATH = f'{Path.cwd()}/tests/unit_tests/test_files'
@@ -20,13 +20,29 @@ FAILURE2_FILE_NAME = 'pathways-filename.zip'
 FAILURE3_FILE_NAME = 'pathways-fieldname.zip'
 FAILURE4_FILE_NAME = 'pathways-explicit-error.zip'
 
+
+# The "good" feeds are real Baltimore Metro data. MobilityData accepts them, but they have four
+# escalators, stairs and elevators between stops on the same level, which TDEI's checks fail.
+GOOD_FEED_FAILURES = ['tdei_level_change_same_level']
+
+
+def failing_codes(validation_message):
+    return [error['code'] for error in json.loads(validation_message)]
+
+
+def patch_clean_up(test):
+    """Replaces PathwaysFeedValidation.clean_up until the end of one test."""
+    patcher = patch.object(PathwaysFeedValidation, 'clean_up')
+    test.addCleanup(patcher.stop)
+    return patcher.start()
+
 DATA_TYPE = 'gtfs_pathways'
 SCHEMA_VERSION = 'v1.0'
 
 
 class TestGoodFile2(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{SUCCESS3_FILE_NAME}'
@@ -37,8 +53,8 @@ class TestGoodFile2(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS3_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = SUCCESS3_FILE_NAME
             self.validator.container_name = None
@@ -56,11 +72,11 @@ class TestGoodFile2(unittest.TestCase):
         if not os.path.isfile(destination):
             shutil.copyfile(source, destination)
 
-        file_path = f'{SAVED_FILE_PATH}/{SUCCESS3_FILE_NAME}'
+        file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS3_FILE_NAME}'
 
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, errors = self.validator.validate()
@@ -71,7 +87,7 @@ class TestGoodFile2(unittest.TestCase):
 
 class TestGoodFile3(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{SUCCESS4_FILE_NAME}'
@@ -82,8 +98,8 @@ class TestGoodFile3(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS4_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = SUCCESS4_FILE_NAME
             self.validator.container_name = None
@@ -101,22 +117,23 @@ class TestGoodFile3(unittest.TestCase):
         if not os.path.isfile(destination):
             shutil.copyfile(source, destination)
 
-        file_path = f'{SAVED_FILE_PATH}/{SUCCESS4_FILE_NAME}'
+        file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS4_FILE_NAME}'
 
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, errors = self.validator.validate()
 
         # Assert
-        self.assertTrue(is_valid)
+        self.assertFalse(is_valid)
+        self.assertEqual(failing_codes(errors), GOOD_FEED_FAILURES)
 
 
 class TestExplicitErrorCase(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{FAILURE4_FILE_NAME}'
@@ -127,8 +144,8 @@ class TestExplicitErrorCase(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE4_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = FAILURE4_FILE_NAME
             self.validator.container_name = None
@@ -146,11 +163,11 @@ class TestExplicitErrorCase(unittest.TestCase):
         if not os.path.isfile(destination):
             shutil.copyfile(source, destination)
 
-        file_path = f'{SAVED_FILE_PATH}/{FAILURE3_FILE_NAME}'
+        file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE3_FILE_NAME}'
 
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, errors = self.validator.validate()
@@ -162,7 +179,7 @@ class TestExplicitErrorCase(unittest.TestCase):
 
 class TestFieldNameError(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{FAILURE3_FILE_NAME}'
@@ -173,8 +190,8 @@ class TestFieldNameError(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE3_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = FAILURE3_FILE_NAME
             self.validator.container_name = None
@@ -196,7 +213,7 @@ class TestFieldNameError(unittest.TestCase):
 
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, errors = self.validator.validate()
@@ -208,7 +225,7 @@ class TestFieldNameError(unittest.TestCase):
 
 class TestFileNameError(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{FAILURE2_FILE_NAME}'
@@ -219,8 +236,8 @@ class TestFileNameError(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE2_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = FAILURE2_FILE_NAME
             self.validator.container_name = None
@@ -242,7 +259,7 @@ class TestFileNameError(unittest.TestCase):
 
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, errors = self.validator.validate()
@@ -254,7 +271,7 @@ class TestFileNameError(unittest.TestCase):
 
 class TestForeignKey(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{FAILURE1_FILE_NAME}'
@@ -265,8 +282,8 @@ class TestForeignKey(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE1_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = FAILURE1_FILE_NAME
             self.validator.container_name = None
@@ -288,7 +305,7 @@ class TestForeignKey(unittest.TestCase):
 
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, errors = self.validator.validate()
@@ -298,9 +315,9 @@ class TestForeignKey(unittest.TestCase):
         self.assertTrue(errors.find("foreign_key_violation") > 0)
 
 
-class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
+class TestSuccessPathwaysFeedValidation(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{SUCCESS_FILE_NAME}'
@@ -311,8 +328,8 @@ class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = SUCCESS_FILE_NAME
             self.validator.container_name = None
@@ -322,32 +339,33 @@ class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_validate_with_valid_file(self):
+    def test_validate_with_good_feed(self):
         # Arrange
         file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
+
+        # Act
+        is_valid, errors = self.validator.validate()
+
+        # Assert
+        self.assertFalse(is_valid)
+        self.assertEqual(failing_codes(errors), GOOD_FEED_FAILURES)
+
+    def test_is_gtfs_pathways_valid_with_good_feed_cleans_up(self):
+        # Arrange
+        file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        expected_downloaded_file_path = file_path
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+        patch_clean_up(self)
 
         # Act
         is_valid, _ = self.validator.validate()
 
         # Assert
-        self.assertTrue(is_valid)
-
-    def test_is_gtfs_pathways_valid_with_valid_file(self):
-        # Arrange
-        file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
-        expected_downloaded_file_path = file_path
-        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
-
-        # Act
-        is_valid, _ = self.validator.validate()
-
-        # Assert
-        self.assertTrue(is_valid)
-        GTFSPathwaysValidation.clean_up.assert_called_once()
+        self.assertFalse(is_valid)
+        PathwaysFeedValidation.clean_up.assert_called_once()
 
     def test_download_single_file(self):
         # Arrange
@@ -374,15 +392,14 @@ class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
         # Arrange
         file_upload_path = DOWNLOAD_FILE_PATH
         text_file_path = f'{file_upload_path}/text_file.txt'
-        f = open(text_file_path, "w")
-        f.write("Sample text")
-        f.close()
+        with open(text_file_path, "w") as f:
+            f.write("Sample text")
 
         # Act
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        PathwaysFeedValidation.clean_up(text_file_path)
 
         # Assert
-        # self.assertFalse(os.path.exists(text_file_path))
+        self.assertFalse(os.path.exists(text_file_path))
 
     def test_clean_up_folder(self):
         # Arrange
@@ -393,15 +410,25 @@ class TestSuccessGTFSPathwaysValidation(unittest.TestCase):
             os.makedirs(directory_path)
 
         # Act
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        PathwaysFeedValidation.clean_up(directory_path)
 
         # Assert
-        # self.assertFalse(os.path.exists(directory_name))
+        self.assertFalse(os.path.exists(directory_path))
+
+    def test_clean_up_refuses_paths_outside_downloads(self):
+        # Arrange
+        outside = SAVED_FILE_PATH
+
+        # Act
+        PathwaysFeedValidation.clean_up(outside)
+
+        # Assert
+        self.assertTrue(os.path.isdir(outside))
 
 
-class TestFailureGTFSPathwaysValidation(unittest.TestCase):
+class TestFailurePathwaysFeedValidation(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{FAILURE_FILE_NAME}'
@@ -412,8 +439,8 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = FAILURE_FILE_NAME
             self.validator.container_name = None
@@ -428,7 +455,7 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE_FILE_NAME}'
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, _ = self.validator.validate()
@@ -441,28 +468,29 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
         file_path = f'{DOWNLOAD_FILE_PATH}/{FAILURE_FILE_NAME}'
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, _ = self.validator.validate()
 
         # Assert
         self.assertFalse(is_valid)
-        GTFSPathwaysValidation.clean_up.assert_called_once()
+        PathwaysFeedValidation.clean_up.assert_called_once()
 
     def test_is_gtfs_pathways_valid_with_invalid_format_file(self):
         # Arrange
-        file_path = f'{SAVED_FILE_PATH}/gtfs-pathways-upload.json'
+        file_path = f'{DOWNLOAD_FILE_PATH}/gtfs-pathways-upload.json'
+        shutil.copyfile(f'{Path.cwd()}/src/assets/gtfs-pathways-upload.json', file_path)
         expected_downloaded_file_path = file_path
         self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
-        GTFSPathwaysValidation.clean_up = MagicMock()
+        patch_clean_up(self)
 
         # Act
         is_valid, _ = self.validator.validate()
 
         # Assert
         self.assertFalse(is_valid)
-        GTFSPathwaysValidation.clean_up.assert_called_once()
+        PathwaysFeedValidation.clean_up.assert_called_once()
 
     def test_download_single_file_exception(self):
         # Arrange
@@ -486,8 +514,8 @@ class TestFailureGTFSPathwaysValidation(unittest.TestCase):
         self.assertEqual(content, b'file_content')
 
 
-class TestGTFSPathwaysValidationInit(unittest.TestCase):
-    @patch('src.gtfs_pathways_validation.Settings')
+class TestPathwaysFeedValidationInit(unittest.TestCase):
+    @patch('src.pathways_feed_validation.Settings')
     def test_initialization(self, mock_settings):
         # Arrange
         mock_storage_client = MagicMock()
@@ -501,7 +529,7 @@ class TestGTFSPathwaysValidationInit(unittest.TestCase):
         file_path = "path/to/file.zip"
 
         # Act
-        validation_instance = GTFSPathwaysValidation(
+        validation_instance = PathwaysFeedValidation(
             file_path=file_path,
             storage_client=mock_storage_client,
         )
@@ -514,7 +542,7 @@ class TestGTFSPathwaysValidationInit(unittest.TestCase):
 
         mock_storage_client.get_container.assert_called_once_with(container_name="test_container")
 
-    @patch('src.gtfs_pathways_validation.Settings')
+    @patch('src.pathways_feed_validation.Settings')
     def test_initialization_with_prefix(self, mock_settings):
         # Arrange
         mock_storage_client = MagicMock()
@@ -528,7 +556,7 @@ class TestGTFSPathwaysValidationInit(unittest.TestCase):
         custom_prefix = "custom_prefix"
 
         # Act
-        validation_instance = GTFSPathwaysValidation(
+        validation_instance = PathwaysFeedValidation(
             file_path=file_path,
             storage_client=mock_storage_client
         )
@@ -540,9 +568,9 @@ class TestGTFSPathwaysValidationInit(unittest.TestCase):
         mock_storage_client.get_container.assert_called_once_with(container_name="test_container")
 
 
-class TestGTFSPathwaysValidationOther(unittest.TestCase):
+class TestPathwaysFeedValidationOther(unittest.TestCase):
 
-    @patch.object(GTFSPathwaysValidation, 'download_single_file')
+    @patch.object(PathwaysFeedValidation, 'download_single_file')
     def setUp(self, mock_download_single_file):
         os.makedirs(DOWNLOAD_FILE_PATH, exist_ok=True)
         source = f'{SAVED_FILE_PATH}/{SUCCESS_FILE_NAME}'
@@ -553,8 +581,13 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
 
         file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
 
-        with patch.object(GTFSPathwaysValidation, '__init__', return_value=None):
-            self.validator = GTFSPathwaysValidation(file_path=file_path, storage_client=MagicMock())
+        # These tests are about MobilityData's results, so TDEI's own checks find nothing
+        custom_checks = patch('src.pathways_feed_validation.run_custom_checks', return_value=[])
+        custom_checks.start()
+        self.addCleanup(custom_checks.stop)
+
+        with patch.object(PathwaysFeedValidation, '__init__', return_value=None):
+            self.validator = PathwaysFeedValidation(file_path=file_path, storage_client=MagicMock())
             self.validator.file_path = file_path
             self.validator.file_relative_path = SUCCESS_FILE_NAME
             self.validator.container_name = None
@@ -571,7 +604,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
 
         # Act
         try:
-            GTFSPathwaysValidation.clean_up(non_existent_path)
+            PathwaysFeedValidation.clean_up(non_existent_path)
             success = True
         except Exception:
             success = False
@@ -593,7 +626,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         errors = '[{"code": "INVALID_FIELD", "sampleNotices": []}]'
 
         # Act
-        validation_errors = GTFSPathwaysValidation.parse_validation_errors(errors)
+        validation_errors = PathwaysFeedValidation.parse_validation_errors(errors)
 
         # Assert
         self.assertEqual(validation_errors, [{'code': 'INVALID_FIELD', 'sampleNotices': []}])
@@ -603,7 +636,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         errors = [{'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field'}]}]
 
         # Act
-        validation_message = GTFSPathwaysValidation.format_validation_errors(errors)
+        validation_message = PathwaysFeedValidation.format_validation_errors(errors)
 
         # Assert
         self.assertEqual(
@@ -613,13 +646,13 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertNotIn("'", validation_message)
         self.assertFalse(validation_message.startswith('"'))
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_with_errors(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
         mock_result.status = False
         mock_result.error = [
-            {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
+            {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways.txt'}]}
         ]
         mock_mobility_data_validator.return_value.validate.return_value = mock_result
 
@@ -634,11 +667,11 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertIn('INVALID_FIELD', validation_message)
         self.assertEqual(json.loads(validation_message), mock_result.error)
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_with_json_string_errors(self, mock_mobility_data_validator):
         # Arrange
         validation_errors = [
-            {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways_data'}]}
+            {'code': 'INVALID_FIELD', 'sampleNotices': [{'fieldName': 'invalid_field', 'filename': 'pathways.txt'}]}
         ]
         mock_result = MagicMock()
         mock_result.status = False
@@ -656,7 +689,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         self.assertFalse(validation_message.startswith('"'))
         self.assertEqual(json.loads(validation_message), validation_errors)
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_with_json_string_info(self, mock_mobility_data_validator):
         # Arrange
         validation_errors = [
@@ -677,10 +710,9 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
 
         # Assert
         self.assertTrue(is_valid)
-        self.assertEqual(validation_message, '[]')
-        self.assertEqual(mock_result.info, validation_errors)
+        self.assertEqual(validation_message, '')
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_to_convert_error_to_warning(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
@@ -701,7 +733,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertTrue(is_valid)
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_for_fatal_errors(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
@@ -722,7 +754,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_with_other(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
@@ -743,7 +775,88 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
+    def test_is_pathways_valid_cleans_up_when_validation_fails(self, mock_mobility_data_validator):
+        # Arrange
+        mock_mobility_data_validator.return_value.validate.side_effect = RuntimeError('validator crashed')
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/abc/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act / Assert
+        with patch.object(PathwaysFeedValidation, 'clean_up') as mock_clean_up:
+            with self.assertRaisesRegex(RuntimeError, 'validator crashed'):
+                self.validator.is_gtfs_pathways_valid()
+        mock_clean_up.assert_called_once_with(f'{DOWNLOAD_FILE_PATH}/abc')
+        self.assertEqual(mock_mobility_data_validator.call_args.kwargs['output_dir'],
+                         f'{DOWNLOAD_FILE_PATH}/abc/mobilitydata')
+
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
+    def test_is_pathways_valid_fails_with_any_error(self, mock_mobility_data_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'sample_code',
+             'sampleNotices': [{'fieldName': 'route_color', 'filename': 'routes.txt'}]}
+        ]
+        mock_result.info = None
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+        self.assertEqual([error['code'] for error in json.loads(validation_message)], ['sample_code'])
+
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
+    def test_is_pathways_valid_lists_errors_but_not_downgraded_ones(self, mock_mobility_data_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'sample_code',
+             'sampleNotices': [{'fieldName': 'route_color', 'filename': 'routes.txt'}]},
+            {'code': 'invalid_url',
+             'sampleNotices': [{'filename': 'agency.txt'}]}
+        ]
+        mock_result.info = None
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+        self.assertEqual([error['code'] for error in json.loads(validation_message)], ['sample_code'])
+
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
+    def test_is_pathways_valid_with_missing_required_file(self, mock_mobility_data_validator):
+        # Arrange
+        mock_result = MagicMock()
+        mock_result.status = False
+        mock_result.error = [
+            {'code': 'missing_required_file', 'sampleNotices': [{'filename': 'agency.txt'}]}
+        ]
+        mock_result.info = None
+        mock_mobility_data_validator.return_value.validate.return_value = mock_result
+
+        expected_downloaded_file_path = f'{DOWNLOAD_FILE_PATH}/{SUCCESS_FILE_NAME}'
+        self.validator.download_single_file = MagicMock(return_value=expected_downloaded_file_path)
+
+        # Act
+        is_valid, validation_message = self.validator.is_gtfs_pathways_valid()
+
+        # Assert
+        self.assertFalse(is_valid)
+
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_with_invalid_pathways_file(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
@@ -764,7 +877,7 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.MobilityDataValidator')
+    @patch('src.pathways_feed_validation.MobilityDataValidator')
     def test_is_pathways_valid_with_child_reference(self, mock_mobility_data_validator):
         # Arrange
         mock_result = MagicMock()
@@ -785,34 +898,25 @@ class TestGTFSPathwaysValidationOther(unittest.TestCase):
         # Assert
         self.assertFalse(is_valid)
 
-    @patch('src.gtfs_pathways_validation.logger')
+    @patch('src.pathways_feed_validation.logger')
     def test_download_single_file_with_no_file_path(self, mock_logger):
-        validator = GTFSPathwaysValidation(file_path="mock_path", storage_client=MagicMock())
+        validator = PathwaysFeedValidation(file_path="mock_path", storage_client=MagicMock())
         validator.storage_client.get_file_from_url.return_value = MagicMock(file_path=None)
 
-        # Act
-        result = validator.download_single_file(file_upload_path="mock_file_path.zip")
+        # Act / Assert
+        with self.assertRaisesRegex(FeedDownloadError, 'mock_file_path.zip not found'):
+            validator.download_single_file(file_upload_path="mock_file_path.zip")
 
-        # Assert
-        assert result is None
-        mock_logger.info.assert_called_once_with(' File not found!')
-
-    @patch('src.gtfs_pathways_validation.logger')
+    @patch('src.pathways_feed_validation.logger')
     def test_download_single_file_with_exception(self, mock_logger):
         # Arrange
-        validator = GTFSPathwaysValidation(file_path="mock_path", storage_client=MagicMock())
+        validator = PathwaysFeedValidation(file_path="mock_path", storage_client=MagicMock())
         validator.storage_client.get_file_from_url.side_effect = Exception("Mocked exception")
 
-        # Act
-        result = validator.download_single_file(file_upload_path="mock_file_path.zip")
-
-        # Assert
-        assert result is None
+        # Act / Assert
+        with self.assertRaisesRegex(FeedDownloadError, 'Could not download the feed: Mocked exception'):
+            validator.download_single_file(file_upload_path="mock_file_path.zip")
         mock_logger.error.assert_called_once()
-        # Extract the exception passed to logger.error and check its message
-        logged_exception = mock_logger.error.call_args[0][0]
-        assert isinstance(logged_exception, Exception)
-        assert str(logged_exception) == "Mocked exception"
 
 
 if __name__ == '__main__':

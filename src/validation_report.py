@@ -7,6 +7,7 @@ import zipfile
 from typing import List, Optional
 
 from .pathways_config import CHANGE_ERROR_TO_WARNING
+from .pathways_metrics import METRIC_LABELS
 
 # What a notice means for the upload
 FAILS_UPLOAD = 'fails_upload'
@@ -23,15 +24,19 @@ OUTCOME_LABELS = {
 OUTCOME_ORDER = [FAILS_UPLOAD, DOWNGRADED, WARNING, INFO]
 
 
+def error_fails_upload(error: dict) -> bool:
+    """
+    Whether an ERROR notice fails the upload: every error does, from MobilityData or TDEI's
+    checks, unless pathways_config.py downgrades it. A feed that can't be read always fails.
+    """
+    return bool(error.get('feedUnreadable')) or error.get('code') not in CHANGE_ERROR_TO_WARNING
+
+
 def notice_outcome(notice: dict) -> str:
-    """
-    What a notice means for the upload, following the same rules as
-    GTFSPathwaysValidation.is_gtfs_pathways_valid: an ERROR fails the upload
-    unless pathways_config.py downgrades it to a warning.
-    """
+    """What a notice means for the upload (see `error_fails_upload`)."""
     severity = notice.get('severity')
     if severity == 'ERROR':
-        return DOWNGRADED if notice.get('code') in CHANGE_ERROR_TO_WARNING else FAILS_UPLOAD
+        return FAILS_UPLOAD if error_fails_upload(notice) else DOWNGRADED
     if severity == 'WARNING':
         return WARNING
     return INFO
@@ -40,15 +45,16 @@ def notice_outcome(notice: dict) -> str:
 class ValidationReport:
     """
     The report of one validation: every notice from MobilityData's validator and from
-    TDEI's own checks, each with its outcome for the upload, as `report.json` and
-    `report.html`, zipped with MobilityData's own reports.
+    TDEI's own checks, each with its outcome for the upload, and the feed's metrics (see
+    pathways_metrics.py), as `report.json` and `report.html`, zipped with MobilityData's own reports.
     """
 
     def __init__(self, feed_name: str, is_valid: bool, mobility_data_notices: List[dict],
                  custom_notices: List[dict], validator_version: Optional[str] = None,
-                 mobility_data_dir: Optional[str] = None):
+                 mobility_data_dir: Optional[str] = None, metrics: Optional[dict] = None):
         self.feed_name = feed_name
         self.is_valid = is_valid
+        self.metrics = metrics
         self.validator_version = validator_version
         self.mobility_data_dir = mobility_data_dir
         self.validated_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
@@ -71,6 +77,7 @@ class ValidationReport:
             'validatedAt': self.validated_at,
             'gtfsValidatorVersion': self.validator_version,
             'codesByOutcome': counts,
+            'metrics': self.metrics,
         }
 
     def to_json(self) -> dict:
@@ -109,11 +116,25 @@ class ValidationReport:
 <p class="meta">Validated {html.escape(self.validated_at)} with MobilityData's GTFS validator
 {html.escape(self.validator_version or '')} and TDEI's pathways checks.</p>
 <ul>{counts}</ul>
+{self._metrics_html()}
 {mobility_data_link}
 {sections}
 </body>
 </html>
 '''
+
+    def _metrics_html(self) -> str:
+        if not self.metrics:
+            return ''
+        rows = ''
+        for group, labels in METRIC_LABELS.items():
+            rows += f'<tr><th colspan="3">{group.capitalize()}</th></tr>'
+            for key, label in labels.items():
+                metric = self.metrics.get(group, {}).get(key)
+                if metric:
+                    percent = '' if metric['percent'] is None else f"{metric['percent']}%"
+                    rows += f"<tr><td>{html.escape(label)}</td><td>{metric['count']} of {metric['total']}</td><td>{percent}</td></tr>"
+        return f'<section class="metrics"><h2>Metrics</h2><table>{rows}</table></section>'
 
     @staticmethod
     def _notice_html(notice: dict) -> str:

@@ -4,8 +4,8 @@ import HtmlTestRunner
 # Define your test cases
 from tests.unit_tests.test_gtfs_pathways_serializer import TestGTFSPathwaysUpload, TestGTFSPathwaysUploadData, TestRequest, \
     TestMeta, TestResponse
-from tests.unit_tests.test_gtfs_pathways_validation import TestSuccessGTFSPathwaysValidation, TestFailureGTFSPathwaysValidation
-from tests.unit_tests.test_gtfx_pathways_validator import TestGTFSPathwaysValidator
+from tests.unit_tests.test_pathways_feed_validation import TestSuccessPathwaysFeedValidation, TestFailurePathwaysFeedValidation
+from tests.unit_tests.test_pathways_queue_worker import TestPathwaysQueueWorker
 from tests.unit_tests.test_main import TestApp
 
 if __name__ == '__main__':
@@ -17,9 +17,9 @@ if __name__ == '__main__':
     test_suite.addTest(unittest.makeSuite(TestRequest))
     test_suite.addTest(unittest.makeSuite(TestMeta))
     test_suite.addTest(unittest.makeSuite(TestResponse))
-    test_suite.addTest(unittest.makeSuite(TestSuccessGTFSPathwaysValidation))
-    test_suite.addTest(unittest.makeSuite(TestFailureGTFSPathwaysValidation))
-    test_suite.addTest(unittest.makeSuite(TestGTFSPathwaysValidator))
+    test_suite.addTest(unittest.makeSuite(TestSuccessPathwaysFeedValidation))
+    test_suite.addTest(unittest.makeSuite(TestFailurePathwaysFeedValidation))
+    test_suite.addTest(unittest.makeSuite(TestPathwaysQueueWorker))
     test_suite.addTest(unittest.makeSuite(TestApp))
 
     # Define the output file for the HTML report

@@ -14,7 +14,7 @@ os.environ['UPLOAD_TOPIC'] = 'temp-upload'
 os.environ['UPLOAD_SUBSCRIPTION'] = 'upload-validation-processor'
 os.environ['VALIDATION_TOPIC'] = 'temp-validation'
 
-from src.gtfx_pathways_validator import GTFSPathwaysValidator
+from src.pathways_queue_worker import PathwaysQueueWorker
 from python_ms_core import Core
 from python_ms_core.core.queue.models.queue_message import QueueMessage
 
@@ -43,22 +43,22 @@ class TestGTFSPathwaysIntegration(unittest.TestCase):
     def tearDown(self):
         pass
 
-    @patch.object(GTFSPathwaysValidator, 'subscribe', new=MagicMock())
+    @patch.object(PathwaysQueueWorker, 'subscribe', new=MagicMock())
     def test_subscribe_to_upload_topic(self):
         if os.environ['QUEUECONNECTION'] is None:
             self.fail('QUEUECONNECTION environment not set')
-        validator = GTFSPathwaysValidator()
+        validator = PathwaysQueueWorker()
         upload_topic = self.core.get_topic(topic_name=self.upload_topic_name)
         message = QueueMessage.data_from({'message': '', 'data': self.test_data})
         upload_topic.publish(data=message)
         time.sleep(0.5)  # Wait to get the callback
         validator.subscribe.assert_called_once()
 
-    @patch.object(GTFSPathwaysValidator, 'subscribe', new=MagicMock())
+    @patch.object(PathwaysQueueWorker, 'subscribe', new=MagicMock())
     async def test_servicebus_receive(self):
         if os.environ['QUEUECONNECTION'] is None:
             self.fail('QUEUECONNECTION environment not set')
-        validator = GTFSPathwaysValidator()
+        validator = PathwaysQueueWorker()
         subscribe_function = MagicMock()
         message = QueueMessage.data_from({'message': '', 'data': self.test_data})
         validator.response_topic.publish(data=message)
