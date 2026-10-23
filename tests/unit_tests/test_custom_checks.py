@@ -88,9 +88,9 @@ class TestStandardStation(StationTestCase):
     def test_passes_every_check(self):
         self.assertEqual(self.notices(), {})
 
-    def test_has_25_checks(self):
-        self.assertEqual(len(CHECKS), 25)
-        self.assertEqual(len({code for code, _, _ in CHECKS}), 25)
+    def test_has_27_checks(self):
+        self.assertEqual(len(CHECKS), 27)
+        self.assertEqual(len({code for code, _, _ in CHECKS}), 27)
 
     def test_samples_point_at_the_row(self):
         self.edit('pathways', 'esc_down', is_bidirectional=1)
@@ -182,6 +182,12 @@ class TestPathwayChecks(StationTestCase):
         self.assertEqual(self.flagged('tdei_duplicate_pathway'), ['walk_ba2'])
         self.assertEqual(self.samples('tdei_duplicate_pathway')[0]['duplicateOfPathwayId'], 'walk_ba')
 
+    def test_pathway_ends_far_apart(self):
+        self.edit('stops', 'P1', stop_lat=39.30070)  # about 60 m from C: too far for an elevator, not an escalator
+
+        self.assertEqual(self.flagged('tdei_pathway_ends_far_apart'), ['elev_low'])
+        self.assertEqual(self.samples('tdei_pathway_ends_far_apart')[0]['maxDistance'], 50)
+
     def test_side_by_side_and_opposite_one_way_pathways_are_fine(self):
         self.add('pathways', pathway('walk_ba_long', 'B2a', 'B2b', 1, length=8))
         self.add('pathways', pathway('one_way_out', 'B2a', 'B2b', 1, bidirectional=0))
@@ -239,6 +245,13 @@ class TestStationChecks(StationTestCase):
         self.edit('stops', 'E1', location_type=3)
 
         self.assertEqual(self.flagged('tdei_station_without_entrance'), ['S'])
+
+    def test_stop_far_from_station(self):
+        for stop_id in ('P1', 'P2', 'B2a', 'B2b'):  # the whole platform level, moved about 1.1 km
+            self.edit('stops', stop_id, stop_lat=float(self.row('stops', stop_id)['stop_lat']) + 0.01)
+
+        self.assertEqual(self.flagged('tdei_stop_far_from_station'), ['P1', 'P2', 'B2a', 'B2b'])
+        self.assertEqual(self.flagged('tdei_stop_far_from_level'), [])  # they're still together
 
     def test_stop_without_pathway(self):
         self.add('stops', stop('P3', 0, 'Lm2', 39.30015, -76.60005))

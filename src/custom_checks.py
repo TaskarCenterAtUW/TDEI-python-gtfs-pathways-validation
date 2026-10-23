@@ -20,6 +20,13 @@ ERROR = 'ERROR'
 WARNING = 'WARNING'
 INFO = 'INFO'
 
+# How far apart a pathway's two stops can plausibly be, in a straight line, by pathway_mode, and how
+# far a stop can be from its station (tuned on MBTA and Baltimore Metro: MBTA's real maximums are
+# 283 m for walkways, 113 m for stairs, 28 m for elevators and 297 m from a station)
+MAX_PATHWAY_SPAN_METERS = {WALKWAY: 500, MOVING_SIDEWALK: 500, STAIRS: 150, ESCALATOR: 150,
+                           ELEVATOR: 50, FARE_GATE: 50, EXIT_GATE: 50}
+MAX_STOP_FROM_STATION_METERS = 500
+
 # TDEI's own pathways checks, from the Workspaces pathways editor's (workspaces-frontend
 # services/gtfs-*.ts), restated for GTFS files; [editor: <name>] is the editor's check.
 # Severities were set in review (2026-10-22); an ERROR fails the upload. See PathwaysModel
@@ -292,6 +299,21 @@ def duplicate_pathway(model: PathwaysModel) -> List[dict]:
     return samples
 
 
+@check('tdei_pathway_ends_far_apart', WARNING)
+def pathway_ends_far_apart(model: PathwaysModel) -> List[dict]:
+    """
+    A pathway whose two stops are farther apart in a straight line than its mode plausibly spans
+    (see MAX_PATHWAY_SPAN_METERS), whatever its length says: likely a stop placed in the wrong spot.
+    """
+    samples = []
+    for pathway in model.pathways:
+        limit = MAX_PATHWAY_SPAN_METERS.get(mode(pathway))
+        distance = distance_m(*pathway_ends(model, pathway))
+        if limit is not None and distance is not None and distance > limit:
+            samples.append(pathway_sample(pathway, straightLineDistance=round(distance, 1), maxDistance=limit))
+    return samples
+
+
 # Levels
 
 @check('tdei_boarding_area_level', WARNING)
@@ -420,6 +442,21 @@ def station_without_entrance(model: PathwaysModel) -> List[dict]:
     """A station with pathways but no entrance (type 2) among its stops. [editor: no_entrance]"""
     return [stop_sample(model.stops_by_id[station]) for station in sorted(model.stations_with_pathways)
             if not any(model.location_type(s) == ENTRANCE for s in model.station_stops[station])]
+
+
+@check('tdei_stop_far_from_station', WARNING)
+def stop_far_from_station(model: PathwaysModel) -> List[dict]:
+    """
+    A stop more than MAX_STOP_FROM_STATION_METERS from its station, when both have coordinates: likely
+    placed in the wrong spot, alone or with the rest of its level.
+    """
+    samples = []
+    for station, stops in sorted(model.station_stops.items()):
+        for stop in stops:
+            distance = distance_m(stop, model.stops_by_id[station])
+            if distance is not None and distance > MAX_STOP_FROM_STATION_METERS:
+                samples.append(stop_sample(stop, stationId=station, distanceFromStation=round(distance)))
+    return samples
 
 
 @check('tdei_stop_without_pathway', ERROR)
