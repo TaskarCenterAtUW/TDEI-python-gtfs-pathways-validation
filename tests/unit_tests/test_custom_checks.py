@@ -1,4 +1,6 @@
 import copy
+import os
+import re
 import unittest
 from unittest.mock import patch
 
@@ -88,9 +90,20 @@ class TestStandardStation(StationTestCase):
     def test_passes_every_check(self):
         self.assertEqual(self.notices(), {})
 
-    def test_has_28_checks(self):
-        self.assertEqual(len(CHECKS), 28)
-        self.assertEqual(len({code for code, _, _ in CHECKS}), 28)
+    def test_has_33_checks(self):
+        self.assertEqual(len(CHECKS), 33)
+        self.assertEqual(len({code for code, _, _ in CHECKS}), 33)
+
+    def test_rules_doc_lists_every_check_with_its_severity(self):
+        path = os.path.join(os.path.dirname(__file__), '..', '..', 'docs', 'validation-rules.md')
+        with open(path, encoding='utf-8') as f:
+            doc = f.read()
+        documented = {}
+        for severity, section in re.findall(r'^### (ERROR|WARNING|INFO)\b.*?\n(.*?)(?=^#|\Z)', doc, re.M | re.S):
+            for code in re.findall(r'^\| `(tdei_\w+)`', section, re.M):
+                documented[code] = severity
+
+        self.assertEqual(documented, {code: severity for code, severity, _ in CHECKS})
 
     def test_samples_point_at_the_row(self):
         self.edit('pathways', 'esc_down', is_bidirectional=1)
@@ -121,7 +134,7 @@ class TestPathwayChecks(StationTestCase):
         self.add('pathways', pathway('elev_flat', 'E1', 'NT', 5))
 
         self.assertEqual(self.flagged('tdei_level_change_same_level'), ['elev_flat'])
-        self.assertEqual(self.notices()['tdei_level_change_same_level']['severity'], 'ERROR')
+        self.assertEqual(self.notices()['tdei_level_change_same_level']['severity'], 'WARNING')
 
     def test_stairs_same_level(self):
         self.add('pathways', pathway('stairs_flat', 'E1', 'NT', 2, stair_count=10))
@@ -129,6 +142,13 @@ class TestPathwayChecks(StationTestCase):
         self.assertEqual(self.flagged('tdei_stairs_same_level'), ['stairs_flat'])
         self.assertEqual(self.flagged('tdei_level_change_same_level'), [])
         self.assertEqual(self.notices()['tdei_stairs_same_level']['severity'], 'WARNING')
+
+    def test_short_flights_within_a_level_are_fine(self):
+        self.add('pathways', pathway('steps', 'E1', 'NT', 2, stair_count=4))
+        self.add('pathways', pathway('stairs_unknown', 'E1', 'NT', 2))
+
+        self.assertEqual(self.flagged('tdei_stairs_same_level'), ['stairs_unknown'])  # no stair_count: can't tell
+        self.assertEqual(self.flagged('tdei_stairs_short_within_level'), ['steps'])  # reported, as INFO
 
     def test_escalator_two_way(self):
         self.edit('pathways', 'esc_down', is_bidirectional=1)
@@ -176,6 +196,13 @@ class TestPathwayChecks(StationTestCase):
 
         self.assertEqual(self.flagged('tdei_length_too_short'), [])
 
+    def test_stops_share_location(self):
+        self.edit('stops', 'NT', stop_lat=39.30000)  # copied from E1, though walk_e is 6 m long
+        self.edit('pathways', 'walk_e', length=30)
+
+        self.assertEqual(self.flagged('tdei_stops_share_location'), ['walk_e'])
+        self.assertEqual(self.flagged('tdei_length_too_long'), [])  # too close to measure
+
     def test_length_over_twice_the_distance_but_under_10_m_off_is_fine(self):
         self.edit('pathways', 'walk_e', length=12)
 
@@ -217,7 +244,7 @@ class TestLevelChecks(StationTestCase):
         self.edit('stops', 'B2b', level_id='Lm1')
 
         self.assertEqual(self.flagged('tdei_boarding_area_level'), ['B2b'])
-        self.assertEqual(self.notices()['tdei_boarding_area_level']['severity'], 'ERROR')
+        self.assertEqual(self.notices()['tdei_boarding_area_level']['severity'], 'WARNING')
 
     def test_level_unreachable(self):
         self.add('levels', {'level_id': 'Lm3', 'level_index': -3})
@@ -269,6 +296,27 @@ class TestStationChecks(StationTestCase):
         self.assertEqual(self.flagged('tdei_stop_far_from_station'), ['P1', 'P2', 'B2a', 'B2b'])
         self.assertEqual(self.flagged('tdei_stop_far_from_level'), [])  # they're still together
 
+    def test_station_without_pathways(self):
+        self.add('stops', stop('T', 1, '', 39.31, -76.61, parent=''))
+        self.add('stops', stop('TP', 0, '', 39.31, -76.61, parent='T'))
+
+        self.assertEqual(self.flagged('tdei_station_without_pathways'), ['T'])
+        self.assertEqual(self.flagged('tdei_stop_without_pathway'), [])  # its stops aren't flagged
+
+    def test_stops_share_position(self):
+        self.edit('stops', 'P2', stop_lat=39.30015, stop_lon=-76.60000)  # on top of P1, same level
+
+        samples = self.samples('tdei_stops_share_position')
+
+        self.assertEqual([(s['stopId'], s['samePositionAs']) for s in samples], [('P1', ['P2'])])
+
+    def test_stops_stacked_on_levels_or_joined_by_an_elevator_are_fine(self):
+        self.edit('stops', 'C', stop_lat=39.30005)  # under NT, on another level
+        self.add('stops', stop('NT2', 3, 'L0', 39.30005, -76.60000))
+        self.add('pathways', pathway('elev_nt', 'NT', 'NT2', 5))  # same spot and level, joined by an elevator
+
+        self.assertEqual(self.flagged('tdei_stops_share_position'), [])
+
     def test_stop_without_pathway(self):
         self.add('stops', stop('P3', 0, 'Lm2', 39.30015, -76.60005))
 
@@ -284,6 +332,13 @@ class TestRouteChecks(StationTestCase):
 
         self.assertEqual(self.flagged('tdei_entrance_reaches_no_platform'), ['E2'])
         self.assertEqual(self.flagged('tdei_entrance_reaches_no_platform_step_free'), [])
+
+    def test_exit_only_doors_are_fine(self):
+        self.add('stops', stop('E5', 2, 'L0', 39.30003, -76.60002))
+        self.add('pathways', pathway('exit_door', 'NT', 'E5', 1, bidirectional=0))  # riders only leave through it
+
+        self.assertEqual(self.flagged('tdei_entrance_reaches_no_platform'), [])
+        self.assertEqual(self.flagged('tdei_entrance_exit_only'), ['E5'])  # reported, as INFO
 
     def test_entrance_reaches_no_platform_step_free(self):
         self.add('stops', stop('E3', 2, 'L0', 39.30008, -76.60003))
@@ -343,6 +398,14 @@ class TestEntranceChecks(StationTestCase):
         self.edit('stops', 'E1', level_id='Lm1')
 
         self.assertEqual(self.flagged('tdei_entrance_not_street_level'), ['E1'])
+
+    def test_step_free_and_street_level_checks_are_info(self):
+        severities = {code: severity for code, severity, _ in CHECKS}
+
+        for code in ('tdei_entrance_reaches_no_platform_step_free', 'tdei_platform_no_step_free_route_in',
+                     'tdei_platform_no_step_free_exit', 'tdei_no_step_free_transfer', 'tdei_elevator_only_route',
+                     'tdei_entrance_not_street_level'):
+            self.assertEqual(severities[code], 'INFO', code)
 
 
 class TestMetrics(StationTestCase):

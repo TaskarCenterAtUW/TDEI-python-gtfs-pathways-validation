@@ -27,9 +27,14 @@ OUTCOME_ORDER = [FAILS_UPLOAD, DOWNGRADED, WARNING, INFO]
 def error_fails_upload(error: dict) -> bool:
     """
     Whether an ERROR notice fails the upload: every error does, from MobilityData or TDEI's
-    checks, unless pathways_config.py downgrades it. A feed that can't be read always fails.
+    checks, unless pathways_config.py downgrades it, or it's about places that are one-way by
+    design (see one_way_service.py). A feed that can't be read always fails.
     """
-    return bool(error.get('feedUnreadable')) or error.get('code') not in CHANGE_ERROR_TO_WARNING
+    if error.get('feedUnreadable'):
+        return True
+    if error.get('pathwayData'):  # in lenient mode (see pathway_errors.py)
+        return False
+    return error.get('code') not in CHANGE_ERROR_TO_WARNING and not error.get('oneWayByService')
 
 
 def notice_outcome(notice: dict) -> str:
@@ -51,10 +56,12 @@ class ValidationReport:
 
     def __init__(self, feed_name: str, is_valid: bool, mobility_data_notices: List[dict],
                  custom_notices: List[dict], validator_version: Optional[str] = None,
-                 mobility_data_dir: Optional[str] = None, metrics: Optional[dict] = None):
+                 mobility_data_dir: Optional[str] = None, metrics: Optional[dict] = None,
+                 strict: Optional[bool] = None):
         self.feed_name = feed_name
         self.is_valid = is_valid
         self.metrics = metrics
+        self.strict = strict
         self.validator_version = validator_version
         self.mobility_data_dir = mobility_data_dir
         self.validated_at = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec='seconds')
@@ -77,6 +84,7 @@ class ValidationReport:
             'validatedAt': self.validated_at,
             'gtfsValidatorVersion': self.validator_version,
             'codesByOutcome': counts,
+            'strict': self.strict,
             'metrics': self.metrics,
         }
 

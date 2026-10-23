@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import unittest
 import zipfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from src.custom_checks import make_notice, MAX_SAMPLE_NOTICES
@@ -184,14 +185,26 @@ class TestValidationWithCustomChecksAndReport(unittest.TestCase):
         self.assertEqual(message, '')
         self.assertEqual([n['code'] for n in self.validator.report.notices], ['tdei_example', 'unknown_file'])
 
-    def test_fails_with_a_custom_error(self):
+    def test_reports_a_custom_error_without_failing_by_default(self):
+        is_valid, message = self.validate_with([notice('tdei_example', 'ERROR')])
+
+        self.assertTrue(is_valid)
+        self.assertEqual(message, '')
+        self.assertEqual([(n['code'], n['outcome']) for n in self.validator.report.notices if n['source'] == 'tdei'],
+                         [('tdei_example', DOWNGRADED)])
+        self.assertFalse(self.validator.report.summary['strict'])
+
+    def test_fails_with_a_custom_error_when_strict(self):
+        self.validator.settings = SimpleNamespace(pathways_strict=True)
+
         is_valid, message = self.validate_with([notice('tdei_example', 'ERROR')])
 
         self.assertFalse(is_valid)
         self.assertEqual([n['code'] for n in json.loads(message)], ['tdei_example'])
         self.assertFalse(self.validator.report.summary['valid'])
 
-    def test_fails_with_mobility_data_and_custom_errors(self):
+    def test_fails_with_mobility_data_and_custom_errors_when_strict(self):
+        self.validator.settings = SimpleNamespace(pathways_strict=True)
         self.mobility_data_notices = [notice('foreign_key_violation', 'ERROR', childFilename='pathways.txt')]
 
         is_valid, message = self.validate_with([notice('tdei_example', 'ERROR')])

@@ -51,6 +51,7 @@ Optional settings for MobilityData's validator:
 GTFS_VALIDATOR_JAR=lib/gtfs-validator-cli.jar  # where the validator is
 GTFS_VALIDATOR_COUNTRY_CODE=us                 # for country-specific rules, e.g. phone numbers
 GTFS_VALIDATOR_TIMEOUT=900                     # seconds
+PATHWAYS_STRICT=false                          # true: errors in pathways data fail an upload too
 JAVA_PATH=java
 ```
 
@@ -102,7 +103,7 @@ Make sure you have setup the project properly before running the tests, see abov
 #### How to run unit test cases
 1. `.env` file is not required for Unit test cases.
 2. To run the unit test cases
-   1. `python test_report.py`
+   1. `python tests/test_report.py`
    2. Above command will run all test cases and generate the html report, in `reports` folder at the root level.
 3. To run the coverage
    1. `coverage run --source=src -m unittest discover -s tests/unit_tests`
@@ -118,7 +119,7 @@ Make sure you have setup the project properly before running the tests, see abov
 #### How to run integration test cases
 1. `.env` file is required for Unit test cases.
 2. To run the integration test cases, run the below command
-   1. `python test_integration.py`
+   1. `python tests/test_integration.py`
    2. Above command will run all integration test cases and generate the html report, in `reports` folder at the root level.
 
 
@@ -167,6 +168,7 @@ graph LR;
         "validatedAt": "2026-10-22T21:40:00+00:00",
         "gtfsValidatorVersion": "8.0.1",
         "codesByOutcome": {"fails_upload": 0, "downgraded_to_warning": 1, "warning": 3, "info": 2},
+        "strict": false,
         "metrics": {
           "completeness": {
             "stationsWithPathways": {"count": 4, "total": 5, "percent": 80.0},
@@ -187,8 +189,12 @@ graph LR;
 
 ```
 
-Every error fails an upload, from MobilityData's validator or TDEI's own checks, except those
-[pathways_config.py](./src/pathways_config.py) downgrades to warnings. A feed that can't be read always fails.
+By default (lenient mode), a feed fails only if it can't be read or its core GTFS has an error; problems in pathways
+data are reported as warnings, so one station's problems don't reject the rest. With `PATHWAYS_STRICT=true`, errors in
+pathways data fail it too.
+
+[docs/validation-rules.md](./docs/validation-rules.md) lists every rule: what fails an upload, the definitions, and each
+TDEI check with its severity.
 
 `report_summary.metrics` measures the feed's stations; it's `null` if they couldn't be measured. Except for
 `stationsWithPathways`, the metrics count within stations that have pathways. "Step-free" means using only
@@ -203,7 +209,22 @@ The report zip holds:
 - `report.json`: `summary` (as in `report_summary`) and `notices`, every problem found, worst first. Each notice is in
   MobilityData's format (`code`, `severity`, `totalNotices`, `sampleNotices`), plus `source` (`mobilitydata` or `tdei`)
   and `outcome`: `fails_upload`, `downgraded_to_warning` (an error [pathways_config.py](./src/pathways_config.py)
-  accepts), `warning` or `info`. Notices keep up to 1,000 samples each, as MobilityData's do. TDEI's samples also
+  accepts, or an unreachable place that's one-way by design; see [docs/validation-rules.md](./docs/validation-rules.md)),
+  `warning` or `info`. Notices keep up to 1,000 samples each, as MobilityData's do. TDEI's samples also
   have a `defectId` that stays the same while the problem does, e.g. `tdei_stairs_same_level:p1`.
 - `report.html`: the same, to read in a browser, with the metrics.
 - `mobilitydata/`: MobilityData's own `report.json`, `report.html` and `system_errors.json`.
+
+## Validating a feed locally
+
+[scripts/validate_feed.py](./scripts/validate_feed.py) validates GTFS zips on disk exactly as the service does
+(MobilityData's validator, then TDEI's checks), without Azure:
+
+```
+python scripts/validate_feed.py feed.zip other.zip --out reports
+```
+
+Add `--strict` to fail on errors in pathways data too, as the service does with `PATHWAYS_STRICT=true`.
+
+It prints whether each feed passes and what failed it, and writes each feed's `report.json` and `report.html` (with
+MobilityData's own reports) to `reports/<feed>/`. It needs the validator jar (`scripts/download-gtfs-validator.sh`).

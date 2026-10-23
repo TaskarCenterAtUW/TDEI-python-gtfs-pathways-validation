@@ -5,7 +5,7 @@ from typing import Callable, List, Optional, Tuple
 
 from .gtfs_feed import GtfsFeed
 from .pathways_model import (BOARDING_AREA, ELEVATOR, ENTRANCE, ESCALATOR, EXIT_GATE, FARE_GATE, GENERIC_NODE,
-                             MOVING_SIDEWALK, STAIRS, STEP_FREE_MODES, STOP_OR_PLATFORM, WALKWAY, PathwaysModel,
+                             MOVING_SIDEWALK, STAIRS, STATION, STEP_FREE_MODES, STOP_OR_PLATFORM, WALKWAY, PathwaysModel,
                              distance_m, to_float, to_int)
 
 logging.basicConfig()
@@ -26,11 +26,16 @@ INFO = 'INFO'
 MAX_PATHWAY_SPAN_METERS = {WALKWAY: 500, MOVING_SIDEWALK: 500, STAIRS: 150, ESCALATOR: 150,
                            ELEVATOR: 50, FARE_GATE: 50, EXIT_GATE: 50}
 MAX_STOP_FROM_STATION_METERS = 500
+# Fewer steps than this on one level is a short flight within it, e.g. into a lobby (MBTA's are 2-8;
+# a full storey takes about 16)
+MIN_SAME_LEVEL_STAIR_COUNT = 10
 
 # TDEI's own pathways checks, from the Workspaces pathways editor's (workspaces-frontend
 # services/gtfs-*.ts), restated for GTFS files; [editor: <name>] is the editor's check.
-# Severities were set in review (2026-10-22); an ERROR fails the upload. See PathwaysModel
-# for what "station", "route" and "step-free" mean here.
+# Severities were set in review (2026-10-22). An ERROR means riders would be routed wrongly or not at all;
+# it fails the upload only in strict mode (see pathways_strict in config.py). See PathwaysModel
+# for what "station", "route" and "step-free" mean here. docs/validation-rules.md lists them all;
+# keep it current (a test checks its codes and severities).
 #
 # Not checked here:
 #
@@ -154,9 +159,18 @@ def positive(value) -> Optional[float]:
 
 # Pathways
 
-def same_level_pathways(model: PathwaysModel, modes: tuple) -> List[dict]:
+def is_short_flight(pathway: dict) -> bool:
+    """Stairs whose stair_count says they're a short flight within a level (under MIN_SAME_LEVEL_STAIR_COUNT steps)."""
+    stair_count = to_int(pathway.get('stair_count'))
+    return mode(pathway) == STAIRS and bool(stair_count) and abs(stair_count) < MIN_SAME_LEVEL_STAIR_COUNT
+
+
+def same_level_pathways(model: PathwaysModel, modes: tuple, short_flights: bool = False) -> List[dict]:
+    """Pathways of these modes whose two stops have the same level_id; short flights of stairs only if asked."""
     samples = []
     for pathway in model.pathways:
+        if is_short_flight(pathway) != short_flights:
+            continue
         if mode(pathway) in modes:
             a, b = pathway_ends(model, pathway)
             if a.get('level_id') and a.get('level_id') == b.get('level_id'):
@@ -164,7 +178,7 @@ def same_level_pathways(model: PathwaysModel, modes: tuple) -> List[dict]:
     return samples
 
 
-@check('tdei_level_change_same_level', ERROR)
+@check('tdei_level_change_same_level', WARNING)
 def level_change_same_level(model: PathwaysModel) -> List[dict]:
     """An escalator or elevator (pathway_mode 4, 5) whose two stops have the same level_id. [editor: same_level]"""
     return same_level_pathways(model, (ESCALATOR, ELEVATOR))
@@ -173,10 +187,19 @@ def level_change_same_level(model: PathwaysModel) -> List[dict]:
 @check('tdei_stairs_same_level', WARNING)
 def stairs_same_level(model: PathwaysModel) -> List[dict]:
     """
-    Stairs (pathway_mode 2) whose two stops have the same level_id. Feeds use this for short
-    flights within one level, e.g. a few steps in a lobby, so it doesn't fail. [editor: same_level]
+    Stairs (pathway_mode 2) whose two stops have the same level_id, unless stair_count says it's a short
+    flight (under MIN_SAME_LEVEL_STAIR_COUNT steps) within the level. [editor: same_level]
     """
     return same_level_pathways(model, (STAIRS,))
+
+
+@check('tdei_stairs_short_within_level', INFO)
+def stairs_short_within_level(model: PathwaysModel) -> List[dict]:
+    """
+    Stairs whose two stops have the same level_id, with a stair_count under MIN_SAME_LEVEL_STAIR_COUNT: a
+    short flight within the level, e.g. into a lobby. Reported so it can be confirmed. [editor: same_level]
+    """
+    return same_level_pathways(model, (STAIRS,), short_flights=True)
 
 
 @check('tdei_escalator_two_way', WARNING)
@@ -272,6 +295,25 @@ def length_too_long(model: PathwaysModel) -> List[dict]:
     return length_samples(model, too_short=False)
 
 
+@check('tdei_stops_share_location', INFO)
+def stops_share_location(model: PathwaysModel) -> List[dict]:
+    """
+    A walkway, moving sidewalk or gate whose stops are under 1 m apart, but whose length is 10 m or more: one
+    stop's coordinates are likely copied from the other's. (The length checks skip stops this close;
+    elevators' stops are often stacked, so they're not included.)
+    """
+    samples = []
+    for pathway in model.pathways:
+        length = positive(pathway.get('length'))
+        if mode(pathway) not in (WALKWAY, MOVING_SIDEWALK, FARE_GATE, EXIT_GATE) or length is None or length < 10:
+            continue
+        distance = distance_m(*pathway_ends(model, pathway))
+        if distance is not None and distance < 1:
+            samples.append(pathway_sample(pathway, fieldName='length', fieldValue=length,
+                                          straightLineDistance=round(distance, 1)))
+    return samples
+
+
 @check('tdei_traversal_time_mismatch', WARNING)
 def traversal_time_mismatch(model: PathwaysModel) -> List[dict]:
     """
@@ -339,7 +381,7 @@ def pathway_ends_far_apart(model: PathwaysModel) -> List[dict]:
 
 # Levels
 
-@check('tdei_boarding_area_level', ERROR)
+@check('tdei_boarding_area_level', WARNING)
 def boarding_area_level(model: PathwaysModel) -> List[dict]:
     """A boarding area (type 4) whose level_id differs from its platform's (its parent_station's). [editor: boarding_area_level]"""
     samples = []
@@ -460,6 +502,16 @@ def missing_level_id(model: PathwaysModel) -> List[dict]:
 
 # Stations
 
+@check('tdei_station_without_pathways', INFO)
+def station_without_pathways(model: PathwaysModel) -> List[dict]:
+    """
+    A station none of whose stops a pathway touches. The checks that need pathways skip it, since riders
+    reach its stops from the street. Reported so missing pathways show.
+    """
+    return [stop_sample(s) for s in model.stops
+            if model.location_type(s) == STATION and s.get('stop_id') not in model.stations_with_pathways]
+
+
 @check('tdei_station_without_entrance', ERROR)
 def station_without_entrance(model: PathwaysModel) -> List[dict]:
     """A station with pathways but no entrance (type 2) among its stops. [editor: no_entrance]"""
@@ -482,7 +534,34 @@ def stop_far_from_station(model: PathwaysModel) -> List[dict]:
     return samples
 
 
-@check('tdei_stop_without_pathway', ERROR)
+@check('tdei_stops_share_position', INFO)
+def stops_share_position(model: PathwaysModel) -> List[dict]:
+    """
+    Stops in a station with pathways on the same level (or both with none) at the same coordinates (to
+    about 0.1 m), unless a fare gate, exit gate or elevator joins them directly (its sides are often one
+    point). Often a placeholder or a duplicate; directional platforms sharing an island may be fine.
+    One sample per group, at its first stop.
+    """
+    joined = {frozenset((p['from_stop_id'], p['to_stop_id'])) for p in model.pathways
+              if mode(p) in (FARE_GATE, EXIT_GATE, ELEVATOR)}
+    samples = []
+    for station in sorted(model.stations_with_pathways):
+        groups = defaultdict(list)
+        for stop in model.station_stops[station]:
+            lat, lon = to_float(stop.get('stop_lat')), to_float(stop.get('stop_lon'))
+            if lat is not None and lon is not None:
+                groups[(stop.get('level_id') or '', round(lat, 6), round(lon, 6))].append(stop)
+        for stops in groups.values():
+            ids = [s['stop_id'] for s in stops]
+            shared = [s for s in stops if not any(frozenset((s['stop_id'], other)) in joined
+                                                  for other in ids if other != s['stop_id'])]
+            if len(shared) > 1:
+                samples.append(stop_sample(shared[0], stationId=station,
+                                           samePositionAs=[s['stop_id'] for s in shared[1:]]))
+    return samples
+
+
+@check('tdei_stop_without_pathway', WARNING)
 def stop_without_pathway(model: PathwaysModel) -> List[dict]:
     """
     A stop in a station with pathways that no pathway touches (skipping the station itself, and
@@ -501,13 +580,30 @@ def stop_without_pathway(model: PathwaysModel) -> List[dict]:
 
 @check('tdei_entrance_reaches_no_platform', WARNING)
 def entrance_reaches_no_platform(model: PathwaysModel) -> List[dict]:
-    """An entrance (type 2), in a station with pathways, from which no platform or boarding area can be reached."""
+    """
+    An entrance (type 2), in a station with pathways, cut off from the platforms both ways: no platform
+    or boarding area can be reached from it, or reach it. (An exit-only door, which riders only leave
+    through, is fine.)
+    """
     targets = {s['stop_id'] for s in model.platform_targets}
+    from_platforms = model.reachable(targets)
     return [stop_sample(e) for e in model.pathway_entrances
-            if not model.reachable([e['stop_id']]) & targets]
+            if e['stop_id'] not in from_platforms and not model.reachable([e['stop_id']]) & targets]
 
 
-@check('tdei_entrance_reaches_no_platform_step_free', WARNING)
+@check('tdei_entrance_exit_only', INFO)
+def entrance_exit_only(model: PathwaysModel) -> List[dict]:
+    """
+    An entrance, in a station with pathways, that riders can only leave through: no platform or boarding
+    area can be reached from it, but some reach it. Reported so it can be confirmed.
+    """
+    targets = {s['stop_id'] for s in model.platform_targets}
+    from_platforms = model.reachable(targets)
+    return [stop_sample(e) for e in model.pathway_entrances
+            if e['stop_id'] in from_platforms and not model.reachable([e['stop_id']]) & targets]
+
+
+@check('tdei_entrance_reaches_no_platform_step_free', INFO)
 def entrance_reaches_no_platform_step_free(model: PathwaysModel) -> List[dict]:
     """An entrance from which platforms can be reached, but none by a step-free route."""
     targets = {s['stop_id'] for s in model.platform_targets}
@@ -516,7 +612,7 @@ def entrance_reaches_no_platform_step_free(model: PathwaysModel) -> List[dict]:
             and not model.reachable([e['stop_id']], STEP_FREE_MODES) & targets]
 
 
-@check('tdei_platform_no_step_free_route_in', WARNING)
+@check('tdei_platform_no_step_free_route_in', INFO)
 def platform_no_step_free_route_in(model: PathwaysModel) -> List[dict]:
     """A platform or boarding area that entrances reach, but none by a step-free route. [editor: no_step_free]"""
     reached, reached_step_free = model.from_entrances(), model.from_entrances(STEP_FREE_MODES)
@@ -524,7 +620,7 @@ def platform_no_step_free_route_in(model: PathwaysModel) -> List[dict]:
             if s['stop_id'] in reached and s['stop_id'] not in reached_step_free]
 
 
-@check('tdei_platform_no_step_free_exit', WARNING)
+@check('tdei_platform_no_step_free_exit', INFO)
 def platform_no_step_free_exit(model: PathwaysModel) -> List[dict]:
     """A platform or boarding area that can reach an entrance, but none by a step-free route."""
     exits, exits_step_free = model.to_entrances(), model.to_entrances(STEP_FREE_MODES)
@@ -541,7 +637,7 @@ def elevator_only_route(model: PathwaysModel) -> List[dict]:
             if s['stop_id'] in step_free and s['stop_id'] not in without_elevators]
 
 
-@check('tdei_no_step_free_transfer', WARNING)
+@check('tdei_no_step_free_transfer', INFO)
 def no_step_free_transfer(model: PathwaysModel) -> List[dict]:
     """
     Two platforms in one station with a route between them that doesn't pass through an entrance,
@@ -565,14 +661,14 @@ def no_step_free_transfer(model: PathwaysModel) -> List[dict]:
 
 # Entrances
 
-@check('tdei_entrance_without_location', ERROR)
+@check('tdei_entrance_without_location', WARNING)
 def entrance_without_location(model: PathwaysModel) -> List[dict]:
     """An entrance (type 2) with no stop_lat or stop_lon, so outdoor (sidewalk) data can't connect to it."""
     return [stop_sample(e) for e in model.entrances
             if to_float(e.get('stop_lat')) is None or to_float(e.get('stop_lon')) is None]
 
 
-@check('tdei_entrance_not_street_level', WARNING)
+@check('tdei_entrance_not_street_level', INFO)
 def entrance_not_street_level(model: PathwaysModel) -> List[dict]:
     """An entrance whose level's level_index isn't 0 (street level). Skipped when it has no level or level_index."""
     samples = []

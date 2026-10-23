@@ -10,6 +10,8 @@ from typing import Any, Optional
 from .config import Settings
 from .custom_checks import run_custom_checks
 from .pathways_metrics import measure_feed
+from .one_way_service import explain_one_way_locations
+from .pathway_errors import lenient_replacements, pathway_stop_ids
 from .gtfs_feed import GtfsFeed
 from .mobility_data_validator import MobilityDataValidator
 from .validation_report import ValidationReport, error_fails_upload
@@ -53,41 +55,9 @@ class PathwaysFeedValidation:
             download_folder = os.path.dirname(downloaded_file_path)
             try:
                 # MobilityData writes next to the feed, so removing the download folder removes its output too
-                pathways_validator = MobilityDataValidator(zip_file=downloaded_file_path,
-                                                           output_dir=os.path.join(download_folder, 'mobilitydata'))
-                result = pathways_validator.validate()
-
-                # TDEI's own checks are judged by the same rules as MobilityData's notices
-                custom_notices, metrics = self.run_custom_checks(downloaded_file_path)
-                custom_errors = [{**notice, 'source': 'tdei'} for notice in custom_notices
-                                 if notice.get('severity') == 'ERROR']
-
-                validation_errors = self.parse_validation_errors(result.error)
-                validation_info = self.parse_validation_errors(result.info)
-                mobility_data_notices = list(validation_info) if isinstance(validation_info, list) \
-                    else list(validation_errors) if isinstance(validation_errors, list) else []
-
-                # Every error fails the upload unless pathways_config.py downgrades it (see validation_report.error_fails_upload)
-                if validation_errors is None or isinstance(validation_errors, list):
-                    failing_errors = [error for error in (validation_errors or []) + custom_errors
-                                      if error_fails_upload(error)]
-                else:
-                    # An error that isn't a list of notices can't be judged, so it fails the upload
-                    failing_errors = validation_errors
-                is_valid = not failing_errors
-                if failing_errors:
-                    validation_message = self.format_validation_errors(failing_errors)
-                    logger.error(f' Error While Validating File: {validation_message}')
-
-                self.report = ValidationReport(
-                    feed_name=self.file_relative_path,
-                    is_valid=bool(is_valid),
-                    mobility_data_notices=mobility_data_notices,
-                    custom_notices=custom_notices,
-                    metrics=metrics,
-                    validator_version=getattr(result, 'validator_version', None),
-                    mobility_data_dir=getattr(result, 'output_dir', None),
-                )
+                is_valid, validation_message, self.report = self.check_feed(
+                    downloaded_file_path, self.file_relative_path, os.path.join(download_folder, 'mobilitydata'),
+                    strict=getattr(getattr(self, 'settings', None), 'pathways_strict', False) is True)
                 self.report_url = self.upload_report(self.report)
             finally:
                 PathwaysFeedValidation.clean_up(download_folder)
@@ -95,6 +65,90 @@ class PathwaysFeedValidation:
             logger.error(f' Failed to validate because unknown file format')
 
         return is_valid, validation_message
+
+    @classmethod
+    def check_feed(cls, zip_path: str, feed_name: str, output_dir: str,
+                   strict: bool = False) -> tuple[bool, str, ValidationReport]:
+        """
+        Validates a feed zip on disk: MobilityData's validator (writing its reports to output_dir), then
+        TDEI's checks and metrics. Returns whether it passes, the errors that failed it as JSON, and the
+        report. Unless strict, errors in pathways data are reported but don't fail it (see
+        pathway_errors.py). The service and scripts/validate_feed.py both use it.
+        """
+        validation_message = ''
+        result = MobilityDataValidator(zip_file=zip_path, output_dir=output_dir).validate()
+
+        # TDEI's own checks are judged by the same rules as MobilityData's notices
+        custom_notices, metrics = cls.run_custom_checks(zip_path)
+        if not strict:  # TDEI's checks are all about pathways data
+            custom_notices = [{**notice, 'pathwayData': True} if notice.get('severity') == 'ERROR' else notice
+                              for notice in custom_notices]
+        custom_errors = [{**notice, 'source': 'tdei'} for notice in custom_notices
+                         if notice.get('severity') == 'ERROR']
+
+        validation_errors = cls.parse_validation_errors(result.error)
+        validation_info = cls.parse_validation_errors(result.info)
+        if isinstance(validation_errors, list):
+            validation_errors, validation_info = cls.explain_one_way_locations(zip_path, validation_errors, validation_info)
+            if not strict:
+                validation_errors, validation_info = cls.mark_pathway_errors(zip_path, validation_errors, validation_info)
+        mobility_data_notices = list(validation_info) if isinstance(validation_info, list) \
+            else list(validation_errors) if isinstance(validation_errors, list) else []
+
+        # Every error fails the upload unless pathways_config.py downgrades it (see validation_report.error_fails_upload)
+        if validation_errors is None or isinstance(validation_errors, list):
+            failing_errors = [error for error in (validation_errors or []) + custom_errors
+                              if error_fails_upload(error)]
+        else:
+            # An error that isn't a list of notices can't be judged, so it fails the upload
+            failing_errors = validation_errors
+        is_valid = not failing_errors
+        if failing_errors:
+            validation_message = cls.format_validation_errors(failing_errors)
+            logger.error(f' Error While Validating File: {validation_message}')
+
+        report = ValidationReport(
+            feed_name=feed_name,
+            is_valid=bool(is_valid),
+            mobility_data_notices=mobility_data_notices,
+            custom_notices=custom_notices,
+            metrics=metrics,
+            strict=strict,
+            validator_version=getattr(result, 'validator_version', None),
+            mobility_data_dir=getattr(result, 'output_dir', None),
+        )
+        return is_valid, validation_message, report
+
+    @staticmethod
+    def explain_one_way_locations(zip_path: str, errors: list, notices: Any) -> tuple[list, Any]:
+        """
+        Replaces MobilityData's unreachable-location errors for places that are one-way by design (e.g. a
+        drop-off-only platform), which don't fail the upload (see one_way_service.py). A problem working
+        that out leaves the errors as they are.
+        """
+        try:
+            replacements = explain_one_way_locations(zip_path, errors)
+        except Exception as e:
+            traceback.print_exc()
+            logger.error(f' Could not check one-way locations: {e}')
+            return errors, notices
+        replace = lambda items: [new for item in items for new in replacements.get(id(item), [item])]
+        return replace(errors), replace(notices) if isinstance(notices, list) else notices
+
+    @staticmethod
+    def mark_pathway_errors(zip_path: str, errors: list, notices: Any) -> tuple[list, Any]:
+        """
+        For lenient mode: marks MobilityData's errors in pathways data so they don't fail the upload (see
+        pathway_errors.py). A problem working that out leaves the errors as they are.
+        """
+        try:
+            replacements = lenient_replacements(errors, pathway_stop_ids(zip_path))
+        except Exception as e:
+            traceback.print_exc()
+            logger.error(f' Could not tell which errors are in pathways data: {e}')
+            return errors, notices
+        replace = lambda items: [new for item in items for new in replacements.get(id(item), [item])]
+        return replace(errors), replace(notices) if isinstance(notices, list) else notices
 
     @staticmethod
     def run_custom_checks(zip_path: str) -> tuple[list, Optional[dict]]:

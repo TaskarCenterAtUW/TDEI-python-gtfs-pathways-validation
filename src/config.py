@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     gtfs_validator_country_code: str = os.environ.get('GTFS_VALIDATOR_COUNTRY_CODE', 'us')
     gtfs_validator_timeout: int = os.environ.get('GTFS_VALIDATOR_TIMEOUT', 900)  # seconds
     java_path: str = os.environ.get('JAVA_PATH', 'java')
+    # Whether errors in pathways data fail an upload; by default they're reported as warnings, so one station's
+    # problems don't reject a whole feed (see docs/validation-rules.md)
+    pathways_strict: bool = os.environ.get('PATHWAYS_STRICT', 'false').strip().lower() in ('1', 'true', 'yes')
     
     def get_unique_id(self) -> str:
         return str(uuid.uuid4())

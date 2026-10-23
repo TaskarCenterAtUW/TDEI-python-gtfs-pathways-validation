@@ -34,3 +34,20 @@ CHANGE_ERROR_TO_WARNING = [
     'timeframe_start_or_end_time_greater_than_twenty_four_hours',
     'u_r_i_syntax_error'
 ]
+
+# Pathways data: in lenient mode (the default; see pathways_strict in config.py), errors in it don't fail an
+# upload, since each is local to a station. It's TDEI's own checks, these MobilityData codes, and any other
+# MobilityData error in these files, or about a stop of these location_types (entrance, generic node, boarding area).
+MOBILITY_DATA_PATHWAY_CODES = [
+    'pathway_unreachable_location',
+    'bidirectional_exit_gate',
+    'pathway_to_wrong_location_type',
+    'pathway_to_platform_with_boarding_areas',
+    'pathway_to_stop_with_access_outside_of_station_pathways',
+    'pathway_loop',
+    'pathway_dangling_generic_node',
+    'missing_level_id',
+    'location_without_parent_station'
+]
+PATHWAY_FILES = ['pathways.txt', 'levels.txt']
+PATHWAY_LOCATION_TYPES = ['2', '3', '4']

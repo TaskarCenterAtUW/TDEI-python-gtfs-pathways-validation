@@ -82,14 +82,12 @@ if __name__ == '__main__':
 | Validation | TestPathwaysFeedValidationOther | Functional | When the storage client fails or the file isn't found | Expect download_single_file to raise FeedDownloadError |:white_check_mark:|
 | Validation | TestPathwaysFeedValidationOther | Functional | When the file isn't a .zip | Expect to return False without downloading |:white_check_mark:|
 |--|--|--|--|--|--|
-| Validation | TestPathwaysFeedValidationOther | Functional | When a pathways error is found (pathways file or field, child file, or pathways error code) | Expect to return False, with the errors as JSON |:white_check_mark:|
-| Validation | TestPathwaysFeedValidationOther | Functional | When the only errors are outside pathways | Expect to return True, with no message |:white_check_mark:|
-| Validation | TestPathwaysFeedValidationOther | Functional | When there are errors both in and outside pathways | Expect the message to list only the pathways errors |:white_check_mark:|
-| Validation | TestPathwaysFeedValidationOther | Functional | When a required file is missing | Expect to return False |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When MobilityData reports any error | Expect to return False, with the errors as JSON |:white_check_mark:|
+| Validation | TestPathwaysFeedValidationOther | Functional | When some errors are ones pathways_config.py downgrades | Expect the message to list only the others |:white_check_mark:|
 | Validation | TestPathwaysFeedValidationOther | Functional | When every error is one pathways_config.py downgrades | Expect to return True |:white_check_mark:|
 | Validation | TestPathwaysFeedValidationOther | Functional | When MobilityData's validator crashes | Expect the download folder to be removed |:white_check_mark:|
 | Validation | TestGoodFile2 | Functional | When validating a good feed without pathways with the real validator | Expect to return True |:white_check_mark:|
-| Validation | TestExplicitErrorCase, TestFieldNameError, TestFileNameError, TestForeignKey | Functional | When validating a feed with a pathways error with the real validator | Expect to return False |:white_check_mark:|
+| Validation | TestForeignKey | Functional | When validating a feed with a pathways error with the real validator | Expect to return False |:white_check_mark:|
 |--|--|--|--|--|--|
 | Report | TestNoticeOutcome | Functional | When judging an ERROR notice | Expect fails_upload only for pathways errors, unreadable feeds and missing files; error_not_pathways or downgraded_to_warning otherwise |:white_check_mark:|
 | Report | TestValidationReport | Functional | When building a report | Expect every notice with its source and outcome, worst first, and a summary with counts by outcome |:white_check_mark:|
@@ -116,6 +114,8 @@ if __name__ == '__main__':
 | TDEI checks | TestMetrics | Functional | When measuring the standard station, or it without step-free routes | Expect completeness and connectivity counts and percentages |:white_check_mark:|
 | TDEI checks | TestMetrics | Functional | When measuring a feed without pathways | Expect percentages of None where nothing is counted |:white_check_mark:|
 | Report | TestValidationReport, TestValidationWithCustomChecksAndReport | Functional | When the feed is measured, or measuring crashes | Expect metrics in the summary and HTML, or null without blocking the upload |:white_check_mark:|
+| One-way service | TestOneWayService | Functional | When trips only end, or only start, at a platform (or pickup_type / drop_off_type say so) | Expect it to be arrival-only, or departure-only |:white_check_mark:|
+| One-way service | TestOneWayService | Functional | When MobilityData finds places unreachable one way that match their platform's service, including nodes on the routes | Expect them downgraded to warnings, and the rest (wrong way, through platforms, cut off both ways, unsampled) still failing |:white_check_mark:|
 |--|--|--|--|--|--|
 | Queue worker | TestPathwaysQueueWorker | Functional | When a message arrives | Expect it to be read and processed |:white_check_mark:|
 | Queue worker | TestPathwaysQueueWorker | Functional | When processing a message with a file path | Expect the feed validated and the result published |:white_check_mark:|
