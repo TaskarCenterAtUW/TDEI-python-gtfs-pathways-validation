@@ -207,7 +207,7 @@ def walkway_changes_level(model: PathwaysModel) -> List[dict]:
     return samples
 
 
-@check('tdei_stair_count_direction', ERROR)
+@check('tdei_stair_count_direction', WARNING)
 def stair_count_direction(model: PathwaysModel) -> List[dict]:
     """
     Stairs (pathway_mode 2) whose stair_count sign doesn't match the direction: positive should go
@@ -228,25 +228,48 @@ def stair_count_direction(model: PathwaysModel) -> List[dict]:
     return samples
 
 
-@check('tdei_length_mismatch', INFO)
-def length_mismatch(model: PathwaysModel) -> List[dict]:
+def length_samples(model: PathwaysModel, too_short: bool) -> List[dict]:
     """
-    A pathway of mode 1, 3, 6 or 7 whose length is under 0.5x or over 2x the straight-line distance
-    between its stops, and at least 10 m off. Skipped when either stop has no coordinates, or
-    they're less than 1 m apart (likely copied). [editor: length_mismatch]
+    Pathways of mode 1, 3, 6 or 7 whose length is under 0.5x (too_short) or over 2x the straight-line
+    distance between its stops, and at least 10 m off. Skipped when either stop has no coordinates, or
+    they're less than 1 m apart (likely copied). [editor: length_too_short, length_too_long]
     """
     samples = []
     for pathway in model.pathways:
         length = positive(pathway.get('length'))
         if mode(pathway) not in (WALKWAY, MOVING_SIDEWALK, FARE_GATE, EXIT_GATE) or length is None:
             continue
-        distance = distance_m(*pathway_ends(model, pathway))
-        if distance is None or distance < 1:
+        ends = pathway_ends(model, pathway)
+        distance = distance_m(*ends)
+        if distance is None or distance < 1 or abs(length - distance) < 10:
             continue
-        if (length < 0.5 * distance or length > 2 * distance) and abs(length - distance) >= 10:
+        # A platform or boarding area is an area placed at one point, so a path into it can be
+        # shorter than the line to that point
+        if too_short and any(model.location_type(end) in (STOP_OR_PLATFORM, BOARDING_AREA) for end in ends):
+            continue
+        if (length < 0.5 * distance) if too_short else (length > 2 * distance):
             samples.append(pathway_sample(pathway, fieldName='length', fieldValue=length,
                                           straightLineDistance=round(distance, 1)))
     return samples
+
+
+@check('tdei_length_too_short', WARNING)
+def length_too_short(model: PathwaysModel) -> List[dict]:
+    """
+    A pathway whose length is under half the straight-line distance between its stops (see
+    length_samples), neither of which is a platform or boarding area. A path can't be shorter than
+    the line between two points, so the length or a stop is wrong.
+    """
+    return length_samples(model, too_short=True)
+
+
+@check('tdei_length_too_long', INFO)
+def length_too_long(model: PathwaysModel) -> List[dict]:
+    """
+    A pathway whose length is over twice the straight-line distance between its stops (see
+    length_samples). Usually a winding route, so worth a look rather than wrong.
+    """
+    return length_samples(model, too_short=False)
 
 
 @check('tdei_traversal_time_mismatch', WARNING)
@@ -316,7 +339,7 @@ def pathway_ends_far_apart(model: PathwaysModel) -> List[dict]:
 
 # Levels
 
-@check('tdei_boarding_area_level', WARNING)
+@check('tdei_boarding_area_level', ERROR)
 def boarding_area_level(model: PathwaysModel) -> List[dict]:
     """A boarding area (type 4) whose level_id differs from its platform's (its parent_station's). [editor: boarding_area_level]"""
     samples = []
@@ -394,7 +417,7 @@ def level_index_far_from_street(model: PathwaysModel) -> List[dict]:
     return samples
 
 
-@check('tdei_stop_far_from_level', INFO)
+@check('tdei_stop_far_from_level', WARNING)
 def stop_far_from_level(model: PathwaysModel) -> List[dict]:
     """
     A stop at least 500 m from the median location of the stops on its level in its station

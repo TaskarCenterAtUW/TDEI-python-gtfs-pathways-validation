@@ -88,9 +88,9 @@ class TestStandardStation(StationTestCase):
     def test_passes_every_check(self):
         self.assertEqual(self.notices(), {})
 
-    def test_has_27_checks(self):
-        self.assertEqual(len(CHECKS), 27)
-        self.assertEqual(len({code for code, _, _ in CHECKS}), 27)
+    def test_has_28_checks(self):
+        self.assertEqual(len(CHECKS), 28)
+        self.assertEqual(len({code for code, _, _ in CHECKS}), 28)
 
     def test_samples_point_at_the_row(self):
         self.edit('pathways', 'esc_down', is_bidirectional=1)
@@ -150,21 +150,36 @@ class TestPathwayChecks(StationTestCase):
         self.edit('pathways', 'stairs_top', stair_count=20)
 
         self.assertEqual(self.flagged('tdei_stair_count_direction'), ['stairs_top'])
+        self.assertEqual(self.notices()['tdei_stair_count_direction']['severity'], 'WARNING')
 
     def test_stair_count_zero_is_skipped(self):
         self.edit('pathways', 'stairs_top', stair_count=0)
 
         self.assertEqual(self.flagged('tdei_stair_count_direction'), [])
 
-    def test_length_mismatch(self):
+    def test_length_too_long(self):
         self.edit('pathways', 'walk_e', length=500)
 
-        self.assertEqual(self.flagged('tdei_length_mismatch'), ['walk_e'])
+        self.assertEqual(self.flagged('tdei_length_too_long'), ['walk_e'])
+        self.assertEqual(self.notices()['tdei_length_too_long']['severity'], 'INFO')
+
+    def test_length_too_short(self):
+        self.edit('stops', 'E1', stop_lat=39.29975)  # about 33 m from NT, but walk_e says 6 m
+
+        self.assertEqual(self.flagged('tdei_length_too_short'), ['walk_e'])
+        self.assertEqual(self.flagged('tdei_length_too_long'), [])
+        self.assertEqual(self.notices()['tdei_length_too_short']['severity'], 'WARNING')
+
+    def test_length_short_of_a_platform_is_fine(self):
+        self.edit('stops', 'P1', stop_lat=39.30045)  # P1's point is 33 m from B2a; the transfer is 6 m
+        self.edit('stops', 'P1', stop_lon=-76.60008)
+
+        self.assertEqual(self.flagged('tdei_length_too_short'), [])
 
     def test_length_over_twice_the_distance_but_under_10_m_off_is_fine(self):
         self.edit('pathways', 'walk_e', length=12)
 
-        self.assertEqual(self.flagged('tdei_length_mismatch'), [])
+        self.assertEqual(self.flagged('tdei_length_too_long'), [])
 
     def test_traversal_time_mismatch(self):
         self.edit('pathways', 'esc_down', traversal_time=1)
@@ -202,6 +217,7 @@ class TestLevelChecks(StationTestCase):
         self.edit('stops', 'B2b', level_id='Lm1')
 
         self.assertEqual(self.flagged('tdei_boarding_area_level'), ['B2b'])
+        self.assertEqual(self.notices()['tdei_boarding_area_level']['severity'], 'ERROR')
 
     def test_level_unreachable(self):
         self.add('levels', {'level_id': 'Lm3', 'level_index': -3})
