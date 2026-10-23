@@ -33,6 +33,15 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Download MobilityData's GTFS validator
+        run: scripts/download-gtfs-validator.sh lib
+
       - name: Determine output folder
         id: set_output_folder
         run: |

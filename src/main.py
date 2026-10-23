@@ -4,7 +4,7 @@ import datetime
 from fastapi import FastAPI, APIRouter, Depends, status
 from functools import lru_cache
 from .config import Settings
-from .gtfx_pathways_validator import GTFSPathwaysValidator
+from .pathways_queue_worker import PathwaysQueueWorker
 
 app = FastAPI()
 app.pathways_validator = None
@@ -20,7 +20,7 @@ def get_settings():
 @app.on_event('startup')
 async def startup_event(settings: Settings = Depends(get_settings)) -> None:
     try:
-       app.pathways_validator = GTFSPathwaysValidator()
+       app.pathways_validator = PathwaysQueueWorker()
     except:
         print('\n\n\x1b[31m Application startup failed due to missing or invalid .env file \x1b[0m')
         print('\x1b[31m Please provide the valid .env file and .env file should contains following parameters\x1b[0m')

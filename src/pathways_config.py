@@ -35,23 +35,19 @@ CHANGE_ERROR_TO_WARNING = [
     'u_r_i_syntax_error'
 ]
 
-# errors from the validator that related to pathways
-PATHWAYS_FATAL_ERROR_CODES = [
-    'bidirectional_exit_gate',
-    'pathway_dangling_generic_node',
-    'pathway_loop',
-    'pathway_to_platform_with_boarding_areas',
-    'pathway_to_wrong_location_type',
+# Pathways data: in lenient mode (the default; see pathways_strict in config.py), errors in it don't fail an
+# upload, since each is local to a station. It's TDEI's own checks, these MobilityData codes, and any other
+# MobilityData error in these files, or about a stop of these location_types (entrance, generic node, boarding area).
+MOBILITY_DATA_PATHWAY_CODES = [
     'pathway_unreachable_location',
+    'bidirectional_exit_gate',
+    'pathway_to_wrong_location_type',
+    'pathway_to_platform_with_boarding_areas',
+    'pathway_to_stop_with_access_outside_of_station_pathways',
+    'pathway_loop',
+    'pathway_dangling_generic_node',
     'missing_level_id',
     'location_without_parent_station'
 ]
-
-# fields in GTFS by file that are related to pathways
-PATHWAYS_FIELDS = {
-    'trips.txt': ['wheelchair_accessible'],
-    'stops.txt': ['wheelchair_boarding', 'tts_stop_name']
-}
-
-# files related to pathways    
-PATHWAYS_FILES = ['pathways.txt', 'levels.txt']
+PATHWAY_FILES = ['pathways.txt', 'levels.txt']
+PATHWAY_LOCATION_TYPES = ['2', '3', '4']
