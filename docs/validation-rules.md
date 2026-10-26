@@ -78,7 +78,6 @@ service's mode.
 | `tdei_stop_without_pathway` | A stop in a station with pathways that no pathway touches (not the station itself, or a platform with boarding areas) | ✓ |
 | `tdei_entrance_without_location` | An entrance with no `stop_lat` or `stop_lon`, so outdoor (sidewalk) data can't connect to it | (can't happen there) |
 | `tdei_stairs_same_level` | Stairs whose two stops have the same `level_id`, unless `stair_count` is under 10 (a short flight within the level) | ✓ |
-| `tdei_escalator_two_way` | An escalator with `is_bidirectional` 1 | ✓ |
 | `tdei_walkway_changes_level` | A walkway, moving sidewalk or gate between levels at different heights (`level_index`), with no `max_slope` (a ramp would have one) | ✓ |
 | `tdei_stair_count_direction` | Stairs whose `stair_count` sign doesn't match the direction: positive should go up | ✓ |
 | `tdei_length_too_short` | A walkway, moving sidewalk or gate whose `length` is under half the straight line between its stops, and at least 10 m off; skipped when either end is a platform or boarding area (an area placed at one point) | ✓ |

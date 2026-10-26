@@ -202,13 +202,6 @@ def stairs_short_within_level(model: PathwaysModel) -> List[dict]:
     return same_level_pathways(model, (STAIRS,), short_flights=True)
 
 
-@check('tdei_escalator_two_way', WARNING)
-def escalator_two_way(model: PathwaysModel) -> List[dict]:
-    """An escalator (pathway_mode 4) with is_bidirectional 1. [editor: escalator_two_way]"""
-    return [pathway_sample(p) for p in model.pathways
-            if mode(p) == ESCALATOR and p.get('is_bidirectional', '').strip() == '1']
-
-
 @check('tdei_walkway_changes_level', WARNING)
 def walkway_changes_level(model: PathwaysModel) -> List[dict]:
     """
