@@ -3,17 +3,18 @@ import urllib.parse
 from python_ms_core import Core
 from python_ms_core.core.queue.models.queue_message import QueueMessage
 from .config import Settings
-from .gtfs_pathways_validation import GTFSPathwaysValidation
-from gtfs_canonical_validator import CanonicalValidator
+from .pathways_feed_validation import PathwaysFeedValidation
 from .models.file_upload_msg import FileUploadMsg
 import threading
+from typing import Optional
+from .validation_report import ValidationReport
 
 logging.basicConfig()
 logger = logging.getLogger('PATHWAYS_VALIDATOR')
 logger.setLevel(logging.INFO)
 
 
-class GTFSPathwaysValidator:
+class PathwaysQueueWorker:
     _settings = Settings()
 
     def __init__(self):
@@ -47,10 +48,11 @@ class GTFSPathwaysValidator:
             logger.info(file_upload_path)
             if file_upload_path:
                 # Do the validation in the other class
-                validator = GTFSPathwaysValidation(file_path=file_upload_path, storage_client=self.storage_client)
+                validator = PathwaysFeedValidation(file_path=file_upload_path, storage_client=self.storage_client)
                 validation = validator.validate()
                 self.send_status(valid=validation[0], upload_message=upload_msg,
-                                    validation_message=validation[1])
+                                    validation_message=validation[1], report=validator.report,
+                                    report_url=validator.report_url)
             else:
                 logger.info(' No file Path found in message!')
                 self.send_status(valid=False, upload_message=upload_msg, validation_message='No file Path found in message!')
@@ -58,16 +60,20 @@ class GTFSPathwaysValidator:
                 logger.error(f' Error: {e}')
                 self.send_status(valid=False, upload_message=upload_msg, validation_message=str(e))
 
-    def send_status(self, valid: bool, upload_message: FileUploadMsg, validation_message: str = '') -> None:
+    def send_status(self, valid: bool, upload_message: FileUploadMsg, validation_message: str = '',
+                    report: Optional[ValidationReport] = None, report_url: Optional[str] = None) -> None:
         response_message = {
                 'file_upload_path': upload_message.data.file_upload_path,
                 'user_id': upload_message.data.user_id ,
                 'tdei_project_group_id': upload_message.data.tdei_project_group_id,
                 'success': valid,
                 'message': validation_message,
+                # The full report (a zip of report.json and report.html), and its summary
+                'report_url': report_url,
+                'report_summary': report.summary if report else None,
                 'package': {
                     'python-ms-core': Core.__version__,
-                    'gtfs-canonical-validator': CanonicalValidator.__version__
+                    'gtfs-validator': report.validator_version if report else None
                 }
             }
         logger.info(

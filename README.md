@@ -2,7 +2,6 @@
 
 [![Unit Tests](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml/badge.svg?cacheSeconds=60)](https://github.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/actions/workflows/unit_tests.yaml)
 ![Coverage](https://raw.githubusercontent.com/TaskarCenterAtUW/TDEI-python-gtfs-pathways-validation/badges/coverage.svg?cacheSeconds=60)
-[![gtfs-canonical-validator](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Egtfs-canonical-validator%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=gtfs-canonical-validator&color=blue&cacheSeconds=60)](https://pypi.org/project/gtfs-canonical-validator/)
 [![python-ms-core](https://img.shields.io/badge/dynamic/regex?url=https%3A%2F%2Fraw.githubusercontent.com%2FTaskarCenterAtUW%2FTDEI-python-gtfs-pathways-validation%2Fmain%2Frequirements.txt&search=%28%3Fm%29%5Epython-ms-core%3D%3D%28%5B%5E%5Cr%5Cn%5D%2B%29&replace=%241&label=python-ms-core&color=blue&cacheSeconds=60)](https://pypi.org/project/python-ms-core/)
 
 ## Introduction 
@@ -11,8 +10,12 @@ Service to Validate the GTFS pathways file that is uploaded. At the moment, the 
 - Consumes the message and perform following checks - 
   - Download the file locally 
   - File location is in the message `data.meta.file_upload_path`, reference see this file [msg-gtfs-pathways-upload.json](./src/assets/msg-gtfs-pathways-upload.json)
-  - Uses `tdei-gtfs-csv-validator` to validate the file
-  - Added the `isValid` and `validationMessage` keys to the original message 
+  - Runs [MobilityData's GTFS validator](https://github.com/MobilityData/gtfs-validator) on the file, locally
+  - Runs TDEI's own pathways checks ([src/custom_checks.py](./src/custom_checks.py)) on the same file
+  - Decides whether the file passes using the rules in [src/pathways_config.py](./src/pathways_config.py), which apply to both
+  - Measures how complete and step-free the feed's stations are ([src/pathways_metrics.py](./src/pathways_metrics.py))
+  - Uploads a report of every problem found and the metrics (`report.json` and `report.html`, zipped with MobilityData's own reports) next to the uploaded file
+  - Adds `success`, `message`, `report_url` and `report_summary` to the response message
 - Publishes the result to the topic mentioned in `.env` file, example `VALIDATION_TOPIC=gtfs-pathways-validation`
 
 ## Getting Started
@@ -22,6 +25,13 @@ The project is built on Python with FastAPI framework. All the regular nuances f
 | Software   | Version |
 |------------|---------|
 | Python     | 3.10.x  |
+| Java       | 17 or later (for MobilityData's GTFS validator) |
+
+MobilityData's validator is a Java program. Download the pinned version (to `lib/`, which is ignored by git) with:
+```
+scripts/download-gtfs-validator.sh lib
+```
+The Docker image does this itself. To change the version, set `GTFS_VALIDATOR_VERSION` and add its checksum to the script.
 
 
 ### Connectivity to cloud
@@ -36,7 +46,16 @@ STORAGECONNECTION=xxxx
 MAX_CONCURRENT_MESSAGES=xxx
 ```
 
-The application connect with the `STORAGECONNECTION` string provided in `.env` file and validates downloaded zipfile using `tdei-gtfs-csv-validator` package.
+Optional settings for MobilityData's validator:
+```bash
+GTFS_VALIDATOR_JAR=lib/gtfs-validator-cli.jar  # where the validator is
+GTFS_VALIDATOR_COUNTRY_CODE=us                 # for country-specific rules, e.g. phone numbers
+GTFS_VALIDATOR_TIMEOUT=900                     # seconds
+PATHWAYS_STRICT=false                          # true: errors in pathways data fail an upload too
+JAVA_PATH=java
+```
+
+The application connect with the `STORAGECONNECTION` string provided in `.env` file to download the uploaded file and upload its validation report.
 `QUEUECONNECTION` is not being used in this application but this is the main requirement for `python-ms-core` package
 
 `MAX_CONCURRENT_MESSAGES` - Maximum number of concurrent messages that the app can process. Defaults to 2
@@ -84,7 +103,7 @@ Make sure you have setup the project properly before running the tests, see abov
 #### How to run unit test cases
 1. `.env` file is not required for Unit test cases.
 2. To run the unit test cases
-   1. `python test_report.py`
+   1. `python tests/test_report.py`
    2. Above command will run all test cases and generate the html report, in `reports` folder at the root level.
 3. To run the coverage
    1. `coverage run --source=src -m unittest discover -s tests/unit_tests`
@@ -100,7 +119,7 @@ Make sure you have setup the project properly before running the tests, see abov
 #### How to run integration test cases
 1. `.env` file is required for Unit test cases.
 2. To run the integration test cases, run the below command
-   1. `python test_integration.py`
+   1. `python tests/test_integration.py`
    2. Above command will run all integration test cases and generate the html report, in `reports` folder at the root level.
 
 
@@ -141,11 +160,71 @@ graph LR;
       "user_id": "c59d29b6-a063-4249-943f-d320d15ac9ab",
       "tdei_project_group_id": "0b41ebc5-350c-42d3-90af-3af4ad3628fb",
       "success": true,
-      "message": ""
+      "message": "",
+      "report_url": "https://tdeisamplestorage.blob.core.windows.net/osw/test_upload/valid-validation-report-1a2b3c4d.zip",
+      "report_summary": {
+        "valid": true,
+        "feed": "valid.zip",
+        "validatedAt": "2026-10-22T21:40:00+00:00",
+        "gtfsValidatorVersion": "8.0.1",
+        "codesByOutcome": {"fails_upload": 0, "downgraded_to_warning": 1, "warning": 3, "info": 2},
+        "strict": false,
+        "metrics": {
+          "completeness": {
+            "stationsWithPathways": {"count": 4, "total": 5, "percent": 80.0},
+            "stopsWithLevelId": {"count": 120, "total": 120, "percent": 100.0},
+            "stopsWithWheelchairBoarding": {"count": 30, "total": 42, "percent": 71.4},
+            "pathwaysWithLength": {"count": 150, "total": 180, "percent": 83.3},
+            "pathwaysWithTraversalTime": {"count": 20, "total": 180, "percent": 11.1}
+          },
+          "connectivity": {
+            "platformsStepFree": {"count": 11, "total": 12, "percent": 91.7},
+            "entrancesReachingPlatformStepFree": {"count": 9, "total": 14, "percent": 64.3},
+            "stationsStepFree": {"count": 3, "total": 4, "percent": 75.0}
+          }
+        }
+      }
     }
   }
 
 ```
 
-## Testing Locally
-- To test the local files for validation, use [tease.py](./tease.py) 
+By default (lenient mode), a feed fails only if it can't be read or its core GTFS has an error; problems in pathways
+data are reported as warnings, so one station's problems don't reject the rest. With `PATHWAYS_STRICT=true`, errors in
+pathways data fail it too.
+
+[docs/validation-rules.md](./docs/validation-rules.md) lists every rule: what fails an upload, the definitions, and each
+TDEI check with its severity.
+
+`report_summary.metrics` measures the feed's stations; it's `null` if they couldn't be measured. Except for
+`stationsWithPathways`, the metrics count within stations that have pathways. "Step-free" means using only
+walkways, elevators, fare gates and exit gates, following pathway direction.
+
+`message` lists the errors that failed the upload, as JSON. `report_url` is `null` if the report couldn't be uploaded;
+the result doesn't depend on it.
+
+### Validation report
+
+The report zip holds:
+- `report.json`: `summary` (as in `report_summary`) and `notices`, every problem found, worst first. Each notice is in
+  MobilityData's format (`code`, `severity`, `totalNotices`, `sampleNotices`), plus `source` (`mobilitydata` or `tdei`)
+  and `outcome`: `fails_upload`, `downgraded_to_warning` (an error [pathways_config.py](./src/pathways_config.py)
+  accepts, or an unreachable place that's one-way by design; see [docs/validation-rules.md](./docs/validation-rules.md)),
+  `warning` or `info`. Notices keep up to 1,000 samples each, as MobilityData's do. TDEI's samples also
+  have a `defectId` that stays the same while the problem does, e.g. `tdei_stairs_same_level:p1`.
+- `report.html`: the same, to read in a browser, with the metrics.
+- `mobilitydata/`: MobilityData's own `report.json`, `report.html` and `system_errors.json`.
+
+## Validating a feed locally
+
+[scripts/validate_feed.py](./scripts/validate_feed.py) validates GTFS zips on disk exactly as the service does
+(MobilityData's validator, then TDEI's checks), without Azure:
+
+```
+python scripts/validate_feed.py feed.zip other.zip --out reports
+```
+
+Add `--strict` to fail on errors in pathways data too, as the service does with `PATHWAYS_STRICT=true`.
+
+It prints whether each feed passes and what failed it, and writes each feed's `report.json` and `report.html` (with
+MobilityData's own reports) to `reports/<feed>/`. It needs the validator jar (`scripts/download-gtfs-validator.sh`).

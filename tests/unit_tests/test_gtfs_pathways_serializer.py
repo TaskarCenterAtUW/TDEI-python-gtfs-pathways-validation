@@ -9,8 +9,8 @@ parent_dir = os.path.dirname(current_dir)
 
 TEST_JSON_FILE = os.path.join(parent_dir, 'src/assets/test_pathways_payload.json')
 
-TEST_FILE = open(TEST_JSON_FILE)
-TEST_DATA = json.loads(TEST_FILE.read())
+with open(TEST_JSON_FILE) as TEST_FILE:
+    TEST_DATA = json.loads(TEST_FILE.read())
 
 
 class TestGTFSPathwaysUpload(unittest.TestCase):
