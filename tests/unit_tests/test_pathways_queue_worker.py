@@ -1,12 +1,12 @@
 import unittest
 from unittest.mock import MagicMock, patch, call
-from src.gtfx_pathways_validator import GTFSPathwaysValidator
+from src.pathways_queue_worker import PathwaysQueueWorker
 
 
-class TestGTFSPathwaysValidator(unittest.TestCase):
+class TestPathwaysQueueWorker(unittest.TestCase):
 
-    @patch('src.gtfx_pathways_validator.Settings')
-    @patch('src.gtfx_pathways_validator.Core')
+    @patch('src.pathways_queue_worker.Settings')
+    @patch('src.pathways_queue_worker.Core')
     def setUp(self, mock_core, mock_settings):
         mock_settings.return_value.request_subscription = 'test_subscription'
         mock_settings.return_value.request_topic_name = 'test_request_topic'
@@ -19,8 +19,8 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         mock_core.return_value.get_topic.return_value = MagicMock()
         mock_core.return_value.get_storage_client.return_value = MagicMock()
 
-        # Initialize GTFSPathwaysValidator with mocked dependencies
-        self.validator = GTFSPathwaysValidator()
+        # Initialize PathwaysQueueWorker with mocked dependencies
+        self.validator = PathwaysQueueWorker()
         self.validator.storage_client = MagicMock()
         self.validator.container_name = 'test_container'
         self.sample_message = {
@@ -32,8 +32,8 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
             }
         }
 
-    @patch('src.gtfx_pathways_validator.QueueMessage')
-    @patch('src.gtfx_pathways_validator.FileUploadMsg')
+    @patch('src.pathways_queue_worker.QueueMessage')
+    @patch('src.pathways_queue_worker.FileUploadMsg')
     def test_subscribe_with_valid_message(self, mock_request_message, mock_queue_message):
         # Arrange
         mock_message = MagicMock()
@@ -49,7 +49,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         # Assert
         self.validator.process_message.assert_called_once_with(mock_request_message)
 
-    @patch('src.gtfx_pathways_validator.GTFSPathwaysValidation')
+    @patch('src.pathways_queue_worker.PathwaysFeedValidation')
     def test_process_message_with_valid_file_path(self, mock_validation_instance):
         # Arrange
         mock_request_message = MagicMock()
@@ -67,7 +67,9 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         # Assert
 
         self.validator.send_status.assert_called_once_with(valid=True, upload_message=mock_request_message,
-                                                           validation_message='Validation successful')
+                                                           validation_message='Validation successful',
+                                                           report=mock_pathways_validation_instance.report,
+                                                           report_url=mock_pathways_validation_instance.report_url)
 
     def test_process_message_with_no_file_path(self):
         # Arrange
@@ -85,7 +87,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         self.validator.send_status.assert_called_once_with(valid=False, upload_message=mock_request_message,
                                                            validation_message='No file Path found in message!')
 
-    @patch('src.gtfx_pathways_validator.GTFSPathwaysValidation')
+    @patch('src.pathways_queue_worker.PathwaysFeedValidation')
     def test_process_message_with_exception(self, mock_validation_instance):
         # Arrange
         mock_request_message = MagicMock()
@@ -104,7 +106,7 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         self.validator.send_status.assert_called_once_with(valid=False, upload_message=mock_request_message,
                                                            validation_message='Some error occurred')
 
-    @patch('src.gtfx_pathways_validator.QueueMessage')
+    @patch('src.pathways_queue_worker.QueueMessage')
     def test_send_status_success(self, mock_queue_message):
         # Arrange
         mock_request_message = MagicMock()
@@ -123,7 +125,37 @@ class TestGTFSPathwaysValidator(unittest.TestCase):
         mock_queue_message.data_from.assert_called_once()
         mock_response_topic.publish.assert_called_once_with(data=mock_data)
 
-    @patch('src.gtfx_pathways_validator.threading.Thread')
+    @patch('src.pathways_queue_worker.QueueMessage')
+    def test_send_status_includes_the_report(self, mock_queue_message):
+        # Arrange
+        mock_report = MagicMock(summary={'valid': True}, validator_version='8.0.1')
+
+        # Act
+        self.validator.send_status(
+            valid=True,
+            upload_message=MagicMock(),
+            validation_message='',
+            report=mock_report,
+            report_url='https://reports/feed-report.zip'
+        )
+
+        # Assert
+        data = mock_queue_message.data_from.call_args[0][0]['data']
+        self.assertEqual(data['report_url'], 'https://reports/feed-report.zip')
+        self.assertEqual(data['report_summary'], {'valid': True})
+        self.assertEqual(data['package']['gtfs-validator'], '8.0.1')
+
+    @patch('src.pathways_queue_worker.QueueMessage')
+    def test_send_status_without_a_report(self, mock_queue_message):
+        # Act
+        self.validator.send_status(valid=False, upload_message=MagicMock(), validation_message='Error')
+
+        # Assert
+        data = mock_queue_message.data_from.call_args[0][0]['data']
+        self.assertIsNone(data['report_url'])
+        self.assertIsNone(data['report_summary'])
+
+    @patch('src.pathways_queue_worker.threading.Thread')
     def test_stop_listening(self, mock_thread):
         # Arrange
         mock_thread_instance = MagicMock()

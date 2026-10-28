@@ -132,7 +132,8 @@ dmypy.json
 .downloads/
 .tempdir/
 reports/
-test_report.html
-integration_test_report.html
 /.vscode
 test_results
+.idea
+# Local GTFS feeds
+/*.zip
